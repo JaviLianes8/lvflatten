@@ -2,9 +2,34 @@ import importlib.resources
 
 import lvflatten
 
-# The public API. Add every exported name here as the library grows; this list is the
-# contract and the test below fails if the module and this list disagree.
-PUBLIC_API: list[str] = []
+# The public API. This list is the contract; the tests below fail the moment the module and
+# this list disagree.
+PUBLIC_API: list[str] = [
+    "DBL",
+    "EXT",
+    "I16",
+    "I32",
+    "I64",
+    "I8",
+    "SGL",
+    "U16",
+    "U32",
+    "U64",
+    "U8",
+    "Array",
+    "BoolArray",
+    "Boolean",
+    "Cluster",
+    "LVFlattenError",
+    "LVTimestamp",
+    "Schema",
+    "SchemaError",
+    "String",
+    "Timestamp",
+    "TruncatedDataError",
+    "pack",
+    "unpack",
+]
 
 
 def test_all_lists_exactly_the_public_api() -> None:
