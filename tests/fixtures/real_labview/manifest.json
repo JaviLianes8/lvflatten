@@ -1,0 +1,182 @@
+{
+  "generated_by": "Automated LabVIEW 2026 driving via ActiveX (LabVIEW.Application COM / VI Server)",
+  "generated_date": "2026-10-11",
+  "labview_version": "26.3.1f1 (LabVIEW 2026 Community)",
+  "directory": "C:\\workspace_Python\\_labview-fixtures",
+  "method_that_worked": "Method C/D (run existing VI via COM). Shipped, password-protected-but-runnable VIs in vi.lib/variable/tagger/mndui/config/gendialog/dataConversion.llb (NumToFlattenVariant.vi, BoolToFlattenVariant.vi, TextToFlattenVariant.vi) wire a typed front-panel control to LabVIEW's native Flatten-To-String and expose the raw result in the 'data string' indicator. Driven via GetVIReference + SetControlValue + Run + GetControlValue. Output read as BSTR and decoded with cp1252 (LabVIEW's ANSI->BSTR codepage); every captured value was byte-verified against its independently-computed expected value.",
+  "methods_A_B_result": "IMPOSSIBLE. LabVIEW VI Scripting is not exposed through the ActiveX/VI-Server COM server (no Diagram/Node/Constant classes in the type library; NewVI/OpenVIReference/BlockDiagram and all node-creation names fail GetIDsOfNames on live Application and VI objects). Scripting is only available from inside G, which cannot be bootstrapped headlessly because no generator VI can be created without the GUI or an in-G scripting VI. g-cli is not installed; VI Server over TCP has the same object model (no scripting).",
+  "cross_checks": "All captured cases verified: DBL 0.25->3fd0000000000000, DBL 1.0->3ff0000000000000, +Inf->7ff0000000000000, -Inf->fff0000000000000, NaN->7ff8000000000000, Bool TRUE->01, FALSE->00, String 'ABC'->00000003414243 (U32 big-endian length prefix confirms prepend-size default ON, big-endian confirmed). These match NI documentation exactly, confirming the bytes are genuine LabVIEW output.",
+  "captured_real_fixtures": [
+    {
+      "name": "DBL 0.25",
+      "file": "flatten_dbl_0p25.bin",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI NumToFlattenVariant.vi Numeric=DBL",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "3fd0000000000000",
+      "length": 8,
+      "cross_check_hex": "3fd0000000000000",
+      "cross_check_pass": true,
+      "note": "IEEE754 big-endian DBL"
+    },
+    {
+      "name": "DBL 1.0",
+      "file": "flatten_dbl_1p0.bin",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI NumToFlattenVariant.vi",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "3ff0000000000000",
+      "length": 8,
+      "cross_check_hex": "3ff0000000000000",
+      "cross_check_pass": true,
+      "note": "IEEE754 big-endian DBL"
+    },
+    {
+      "name": "DBL NaN",
+      "file": "flatten_dbl_nan.bin",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI NumToFlattenVariant.vi",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "7ff8000000000000",
+      "length": 8,
+      "cross_check_hex": null,
+      "cross_check_pass": null,
+      "note": "LabVIEW-emitted DBL NaN bit pattern (real capture)"
+    },
+    {
+      "name": "DBL +Inf",
+      "file": "flatten_dbl_posinf.bin",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI NumToFlattenVariant.vi",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "7ff0000000000000",
+      "length": 8,
+      "cross_check_hex": "7ff0000000000000",
+      "cross_check_pass": true,
+      "note": "IEEE754 +Infinity"
+    },
+    {
+      "name": "DBL -Inf",
+      "file": "flatten_dbl_neginf.bin",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI NumToFlattenVariant.vi",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "fff0000000000000",
+      "length": 8,
+      "cross_check_hex": "fff0000000000000",
+      "cross_check_pass": true,
+      "note": "IEEE754 -Infinity"
+    },
+    {
+      "name": "Bool TRUE",
+      "file": "flatten_bool_true.bin",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI BoolToFlattenVariant.vi (Boolean)",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "01",
+      "length": 1,
+      "cross_check_hex": "01",
+      "cross_check_pass": true,
+      "note": "LabVIEW boolean TRUE = 1 byte 0x01"
+    },
+    {
+      "name": "Bool FALSE",
+      "file": "flatten_bool_false.bin",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI BoolToFlattenVariant.vi",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "00",
+      "length": 1,
+      "cross_check_hex": "00",
+      "cross_check_pass": true,
+      "note": "LabVIEW boolean FALSE = 1 byte 0x00"
+    },
+    {
+      "name": "String ABC",
+      "file": "flatten_string_abc.bin",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI TextToFlattenVariant.vi (Text)",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "00000003414243",
+      "length": 7,
+      "cross_check_hex": "00000003414243",
+      "cross_check_pass": true,
+      "note": "U32 big-endian length prefix (prepend-size default ON) + bytes"
+    },
+    {
+      "name": "String empty",
+      "file": "flatten_string_empty.bin",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI TextToFlattenVariant.vi",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "00000000",
+      "length": 4,
+      "cross_check_hex": "00000000",
+      "cross_check_pass": true,
+      "note": "empty string = length 0"
+    }
+  ],
+  "blocked_cases_no_fixture_written": [
+    {
+      "name": "I32 = -19",
+      "intended_file": "flatten_i32.bin",
+      "status": "BLOCKED_NOT_CAPTURED",
+      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML. All shipped numeric->flatten converters (dataConversion.llb) use a DBL control, not I32.",
+      "ni_documented_reference_NOT_from_labview": "ffffffed"
+    },
+    {
+      "name": "1-D DBL array [1,2,3]",
+      "intended_file": "flatten_dbl_array_1d.bin",
+      "status": "BLOCKED_NOT_CAPTURED",
+      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML. No shipped VI has a DBL-array control wired to Flatten To String.",
+      "ni_documented_reference_NOT_from_labview": "00000003 3ff0000000000000 4000000000000000 4008000000000000 (U32 count=3 then 3 big-endian DBLs; spaces for readability)"
+    },
+    {
+      "name": "2-D DBL array [[1,2],[3,4]]",
+      "intended_file": "flatten_dbl_array_2d.bin",
+      "status": "BLOCKED_NOT_CAPTURED",
+      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML.",
+      "ni_documented_reference_NOT_from_labview": "00000002 00000002 3ff0... 4000... 4008... 4010... (two U32 dims=2,2 then 4 big-endian DBLs row-major)"
+    },
+    {
+      "name": "LabVIEW Timestamp 2002-01-01 00:00:00 UTC",
+      "intended_file": "flatten_timestamp.bin",
+      "status": "BLOCKED_NOT_CAPTURED",
+      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML. No shipped VI has a settable Timestamp control wired to flatten.",
+      "ni_documented_reference_NOT_from_labview": "00000000b8555b00 0000000000000000 (i64 seconds since 1904 epoch = 0xB8555B00, then u64 fractional=0; 16 bytes total)"
+    },
+    {
+      "name": "EXT (extended) = 1.0",
+      "intended_file": "flatten_ext_1p0.bin",
+      "status": "BLOCKED_NOT_CAPTURED",
+      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML. COM/VARIANT has no 80/128-bit extended type and no shipped VI exposes a settable EXT control.",
+      "ni_documented_reference_NOT_from_labview": "platform-dependent 80-bit/128-bit extended; not provided by NI quick-ref"
+    },
+    {
+      "name": "EXT (extended) = 0.25",
+      "intended_file": "flatten_ext_0p25.bin",
+      "status": "BLOCKED_NOT_CAPTURED",
+      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML.",
+      "ni_documented_reference_NOT_from_labview": null
+    },
+    {
+      "name": "Cluster {I32=-19, DBL=0.25, String=\"ABC\", BoolArray=[F,T,T,F]}",
+      "intended_file": "flatten_cluster.bin",
+      "status": "BLOCKED_NOT_CAPTURED",
+      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML. Clusters cannot be composed or set via COM, and no shipped cluster-flatten VI with this layout exists.",
+      "ni_documented_reference_NOT_from_labview": "concatenation in cluster order: ffffffed 3fd0000000000000 00000003414243 00000004 00 01 01 00 (I32, DBL, len-prefixed string, then U32 bool-array count=4 + 4 bool bytes)"
+    },
+    {
+      "name": "FXP word=16 int=8 signed, 1.25",
+      "intended_file": "flatten_fxp_w16i8_1p25.bin",
+      "status": "BLOCKED_NOT_CAPTURED",
+      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML. COM has no fixed-point type and no shipped VI exposes a settable FXP control.",
+      "ni_documented_reference_NOT_from_labview": "0140 (16-bit container, 1.25 * 2^8 = 320 = 0x0140, big-endian)"
+    },
+    {
+      "name": "Flatten To JSON: DBL NaN / +Inf / -Inf / normal cluster",
+      "intended_file": "flatten_json_naninf.json",
+      "status": "BLOCKED_NOT_CAPTURED",
+      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML. 'Flatten To JSON' is a diagram primitive; no shipped runnable wrapper VI exists. The bundled 'JSONtext Toolkit' in vi.lib is only a VIPM link stub (no VIs). Capturing the primitive's exact token spelling needs a VI that cannot be authored headlessly.",
+      "ni_documented_reference_NOT_from_labview": "LabVIEW primitive typically emits NaN/Infinity/-Infinity bare tokens and full-precision numbers, but EXACT spelling must be captured, not assumed"
+    },
+    {
+      "name": "Flatten To XML: cluster {I32,DBL,String}",
+      "intended_file": "flatten_xml_cluster.xml",
+      "status": "BLOCKED_NOT_CAPTURED",
+      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML. 'Flatten To XML' is a diagram primitive; no shipped runnable wrapper exposes a settable cluster. The only shipped XML-flatten VIs are the VI-Analyzer config-tree ones, which emit a different, config-specific schema.",
+      "ni_documented_reference_NOT_from_labview": "<Cluster><Name>..</Name><NumElts>3</NumElts><I32>..</I32><DBL>..</DBL><String>..</String></Cluster> (schema must be captured for exactness)"
+    }
+  ]
+}

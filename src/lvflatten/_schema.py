@@ -49,7 +49,7 @@ class BoolType:
 
 @dataclass(frozen=True)
 class BoolArrayType:
-    """A LabVIEW boolean array: an I32 count then the bits packed MSB-first."""
+    """A LabVIEW boolean array: an I32 count then one byte per element (0 or 1)."""
 
 
 @dataclass(frozen=True)

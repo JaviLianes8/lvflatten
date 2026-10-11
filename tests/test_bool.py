@@ -23,14 +23,14 @@ def test_boolean_array_round_trips() -> None:
         assert unpack(BoolArray, pack(BoolArray, value)) == value
 
 
-def test_boolean_array_is_bit_packed_msb_first() -> None:
-    # count 3 as I32, then 0b10100000 in the one packed byte.
-    assert pack(BoolArray, [True, False, True]) == b"\x00\x00\x00\x03\xa0"
+def test_boolean_array_is_one_byte_per_element() -> None:
+    # count 3 as I32, then one byte per element (0x01, 0x00, 0x01), as LabVIEW flattens it.
+    assert pack(BoolArray, [True, False, True]) == b"\x00\x00\x00\x03\x01\x00\x01"
 
 
-def test_boolean_array_spans_multiple_bytes() -> None:
+def test_boolean_array_byte_length_tracks_count() -> None:
     value = [True, False, False, False, False, False, False, False, True]
-    assert pack(BoolArray, value) == b"\x00\x00\x00\x09\x80\x80"
+    assert pack(BoolArray, value) == b"\x00\x00\x00\x09\x01\x00\x00\x00\x00\x00\x00\x00\x01"
 
 
 def test_boolean_array_rejects_non_bool_elements() -> None:

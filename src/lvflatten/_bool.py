@@ -1,4 +1,9 @@
-"""Pack and unpack LabVIEW booleans and bit-packed boolean arrays."""
+"""Pack and unpack LabVIEW booleans and boolean arrays.
+
+LabVIEW flattens a boolean as a single byte (0 or 1), and a boolean array as an I32 count
+followed by one byte per element. The byte-per-element layout is what LabVIEW's "Flatten To
+String" emits and what the NI "Flattened Data" reference documents; it is not bit-packed.
+"""
 
 from __future__ import annotations
 
@@ -22,16 +27,12 @@ def pack_bool_array(value: object, bo: str, out: bytearray) -> None:
     if not isinstance(value, (list, tuple)) or any(not isinstance(flag, bool) for flag in value):
         raise SchemaError("expected a list of bool for a boolean array")
     out += struct.pack(bo + "i", len(value))
-    packed = bytearray((len(value) + 7) // 8)
-    for index, flag in enumerate(value):
-        if flag:
-            packed[index // 8] |= 0x80 >> (index % 8)
-    out += packed
+    out += bytes(1 if flag else 0 for flag in value)
 
 
 def unpack_bool_array(reader: Reader, bo: str) -> list[bool]:
     (count,) = struct.unpack(bo + "i", reader.take(4))
     if count < 0:
         raise SchemaError(f"boolean array length is negative: {count}")
-    raw = reader.take((count + 7) // 8)
-    return [bool(raw[index // 8] & (0x80 >> (index % 8))) for index in range(count)]
+    raw = reader.take(count)
+    return [byte != 0 for byte in raw]
