@@ -26,9 +26,13 @@ _RECORD_VALUE = {
     "inner": {"x": -1, "y": 1},
 }
 _RECORD_GOLDEN = (
-    "00000002000000023ff00000000000004000000000000000"
-    "000000026f6b010000000280000000000000000100000000"
-    "00000000ffff0001"
+    "00000002"
+    "00000002" + "3ff0000000000000" + "4000000000000000"
+    "00000002" + "6f6b"
+    "01"
+    "00000002" + "0100"
+    "0000000000000001" + "0000000000000000"
+    "ffff" + "0001"
 )
 
 
@@ -75,4 +79,4 @@ def test_cli_reports_truncated_data_on_stderr_with_exit_one() -> None:
 def test_cli_version_prints_the_number() -> None:
     result = _run("--version")
     assert result.returncode == 0
-    assert "0.2.0" in result.stdout
+    assert "0.3.0" in result.stdout

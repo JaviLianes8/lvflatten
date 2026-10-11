@@ -17,7 +17,7 @@ schema and the library packs or unpacks the bytes against it.
 from lvflatten import I32, DBL, Array, Cluster, String, Boolean, pack, unpack
 
 # A scalar.
-data = pack(I32, 42)            # b"\x00\x00\x00\x2a"  (big-endian)
+data = pack(I32, 42)  # b"\x00\x00\x00\x2a"  (big-endian)
 assert unpack(I32, data) == 42
 
 # A string: an I32 byte count then the bytes.
@@ -94,11 +94,33 @@ from standard input, so flattened data can be piped straight in.
 | `SGL` / `DBL` | single / double float | IEEE 754, 4 / 8 bytes |
 | `EXT` | extended float | 80-bit value in 16 big-endian bytes |
 | `Boolean` | boolean | one byte, 0 or 1 |
-| `BoolArray` | boolean array | I32 count then bits packed MSB-first |
+| `BoolArray` | boolean array | I32 count then one byte per element (0 or 1) |
 | `String(encoding="utf-8")` | string | I32 byte count then the bytes |
 | `Array(element, ndims=1)` | array | one I32 per dimension, then row-major elements |
 | `Cluster([(name, schema), ...])` | cluster | ordered fields, no padding |
 | `Timestamp` | 128-bit timestamp | I64 seconds + U64 fraction, since 1904 |
+
+## Golden fixtures and provenance
+
+The test suite is pinned to two kinds of reference bytes, kept clearly separated so the
+provenance of every assertion is honest:
+
+- **Captured from real LabVIEW 2026** - the files under
+  [`tests/fixtures/real_labview/`](tests/fixtures/real_labview) are genuine "Flatten To String"
+  output captured on LabVIEW 2026 (26.3.1f1) by driving shipped VIs through the ActiveX/VI
+  Server COM interface and reading the raw `data string` indicator. They cover the DBL values
+  0.25 and 1.0, NaN, positive and negative infinity, boolean TRUE and FALSE, the string
+  `"ABC"`, and the empty string. `tests/test_real_labview.py` decodes each file, checks the
+  value, and re-flattens it byte-for-byte. The accompanying `manifest.json` records how each
+  byte sequence was produced and cross-checked.
+- **Derived from NI documentation** - composite shapes (an I32, a 1-D and a 2-D DBL array, a
+  128-bit timestamp, and a mixed cluster) could not be captured on this machine because LabVIEW
+  VI Scripting is not reachable over COM, so no VI with a settable control of those types could
+  be built headlessly. Their expected bytes come from the NI "Flattened Data" reference, not
+  from a live capture, and `tests/test_documented_composites.py` labels them as such.
+
+The boolean-array layout used throughout is one byte per element after the I32 count, matching
+both the NI reference and the cluster vector; it is not bit-packed.
 
 ## Why
 
@@ -123,12 +145,13 @@ standard library, fully typed, with the type declared explicitly so the round-tr
 
 ## Scope and limits
 
-In scope for 0.2: the integer, float (SGL, DBL, EXT), boolean, boolean-array, string, array
+In scope for 0.3: the integer, float (SGL, DBL, EXT), boolean, boolean-array, string, array
 (including multi-dimensional), cluster and 128-bit timestamp types listed above, big- and
 little-endian, the top-level size toggle, the compact schema text form (`parse_schema` and
-`format_schema`), and the `lvflatten` command-line tool.
+`format_schema`), the `lvflatten` command-line tool, and the real-LabVIEW and NI-documented
+golden fixtures described above.
 
-Out of scope for 0.2 (may come later): variant, waveform, LabVIEW path, refnum, enum and
+Out of scope for 0.3 (may come later): variant, waveform, LabVIEW path, refnum, enum and
 fixed-point types, and parsing LabVIEW type descriptors to build a schema automatically. The
 extended float round-trips any value a Python `float` can hold exactly; magnitudes beyond the
 IEEE 754 double range are lossy. `unpack` consumes the whole buffer and treats trailing bytes

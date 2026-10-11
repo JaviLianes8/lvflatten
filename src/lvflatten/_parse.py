@@ -30,17 +30,11 @@ from ._schema import (
     U64,
     Array,
     BoolArray,
-    BoolArrayType,
     Boolean,
-    BoolType,
     Cluster,
-    ExtType,
-    FloatType,
-    IntType,
     Schema,
     String,
     Timestamp,
-    TimestampType,
 )
 
 _SCALARS: dict[str, Schema] = {
@@ -58,17 +52,6 @@ _SCALARS: dict[str, Schema] = {
     "bool": Boolean,
     "boolarray": BoolArray,
     "timestamp": Timestamp,
-}
-
-_INT_NAMES = {
-    (8, True): "i8",
-    (16, True): "i16",
-    (32, True): "i32",
-    (64, True): "i64",
-    (8, False): "u8",
-    (16, False): "u16",
-    (32, False): "u32",
-    (64, False): "u64",
 }
 
 
@@ -178,28 +161,3 @@ def parse_schema(text: str) -> Schema:
     if not parser.at_end():
         raise SchemaError("trailing tokens after the schema")
     return schema
-
-
-def format_schema(schema: Schema) -> str:
-    """Render a schema to the compact text form that ``parse_schema`` reads."""
-    if isinstance(schema, IntType):
-        return _INT_NAMES[(schema.bits, schema.signed)]
-    if isinstance(schema, FloatType):
-        return "dbl" if schema.double else "sgl"
-    if isinstance(schema, ExtType):
-        return "ext"
-    if isinstance(schema, BoolType):
-        return "bool"
-    if isinstance(schema, BoolArrayType):
-        return "boolarray"
-    if isinstance(schema, TimestampType):
-        return "timestamp"
-    if isinstance(schema, String):
-        return "string" if schema.encoding == "utf-8" else f"string({schema.encoding})"
-    if isinstance(schema, Array):
-        inner = format_schema(schema.element)
-        return f"array({inner})" if schema.ndims == 1 else f"array({inner}, {schema.ndims})"
-    if isinstance(schema, Cluster):
-        fields = ", ".join(f"{name}:{format_schema(sub)}" for name, sub in schema.fields)
-        return f"cluster({fields})"
-    raise SchemaError(f"cannot format schema: {schema!r}")  # pragma: no cover - exhaustive above
