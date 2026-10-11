@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ._codec import pack, unpack
 from ._errors import LVFlattenError, SchemaError, TruncatedDataError
+from ._parse import format_schema, parse_schema
 from ._schema import (
     DBL,
     EXT,
@@ -26,7 +27,7 @@ from ._schema import (
     Timestamp,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "DBL",
@@ -51,6 +52,8 @@ __all__ = [
     "String",
     "Timestamp",
     "TruncatedDataError",
+    "format_schema",
     "pack",
+    "parse_schema",
     "unpack",
 ]

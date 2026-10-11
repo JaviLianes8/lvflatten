@@ -27,7 +27,9 @@ PUBLIC_API: list[str] = [
     "String",
     "Timestamp",
     "TruncatedDataError",
+    "format_schema",
     "pack",
+    "parse_schema",
     "unpack",
 ]
 

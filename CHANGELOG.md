@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0]
+
+### Added
+
+- A compact schema text form with `parse_schema(text)` and `format_schema(schema)`, so a
+  schema can be written on one line (for example `cluster(id:i32, name:string, ok:bool)`) and
+  rendered back out.
+- An `lvflatten` command-line tool (console entry point) with `unflatten` (hex to JSON) and
+  `flatten` (JSON to hex) subcommands, a `--little` byte-order flag, a `--no-size` top-level
+  prefix toggle, stdin input, and worked examples in `--help`.
+
 ## [0.1.0]
 
 ### Added

@@ -1,0 +1,85 @@
+import io
+import json
+
+import pytest
+
+from lvflatten._cli import main
+
+
+def test_unflatten_scalar_to_json(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["unflatten", "-s", "i32", "-x", "0000002a"]) == 0
+    assert json.loads(capsys.readouterr().out) == 42
+
+
+def test_flatten_then_unflatten_round_trips(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["flatten", "-s", "array(dbl)", "-j", "[1.0, 2.0]"]) == 0
+    hex_out = capsys.readouterr().out.strip()
+    assert main(["unflatten", "-s", "array(dbl)", "-x", hex_out]) == 0
+    assert json.loads(capsys.readouterr().out) == [1.0, 2.0]
+
+
+def test_unflatten_cluster_matches_the_documented_example(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    schema = "cluster(id:i32, name:string, ok:bool)"
+    assert main(["unflatten", "-s", schema, "-x", "000000070000000570726f626501"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"id": 7, "name": "probe", "ok": True}
+
+
+def test_hex_may_contain_whitespace(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["unflatten", "-s", "i16", "-x", "00 2a\n"]) == 0
+    assert json.loads(capsys.readouterr().out) == 42
+
+
+def test_little_endian_and_no_size(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["unflatten", "-s", "array(i16)", "-x", "01000200", "--little", "--no-size"]) == 0
+    assert json.loads(capsys.readouterr().out) == [1, 2]
+
+
+def test_compact_json_with_zero_indent(capsys: pytest.CaptureFixture[str]) -> None:
+    assert (
+        main(["unflatten", "-s", "array(i16)", "-x", "00000003000100020003", "--indent", "0"]) == 0
+    )
+    assert capsys.readouterr().out.strip() == "[1, 2, 3]"
+
+
+def test_timestamp_round_trips_through_json(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["flatten", "-s", "timestamp", "-j", "[2082844800, 0]"]) == 0
+    hex_out = capsys.readouterr().out.strip()
+    assert main(["unflatten", "-s", "timestamp", "-x", hex_out]) == 0
+    assert json.loads(capsys.readouterr().out) == [2082844800, 0]
+
+
+def test_reads_hex_from_stdin(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("sys.stdin", io.StringIO("0000002a"))
+    assert main(["unflatten", "-s", "i32"]) == 0
+    assert json.loads(capsys.readouterr().out) == 42
+
+
+def test_bad_hex_reports_an_error(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["unflatten", "-s", "i32", "-x", "zz"]) == 1
+    assert "error:" in capsys.readouterr().err
+
+
+def test_truncated_data_reports_an_error(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["unflatten", "-s", "i32", "-x", "0000"]) == 1
+    assert "error:" in capsys.readouterr().err
+
+
+def test_invalid_schema_reports_an_error(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["unflatten", "-s", "nope", "-x", "00"]) == 1
+    assert "error:" in capsys.readouterr().err
+
+
+def test_invalid_json_reports_an_error(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["flatten", "-s", "i32", "-j", "{not json}"]) == 1
+    assert "error:" in capsys.readouterr().err
+
+
+def test_help_exits_zero(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc:
+        main(["--help"])
+    assert exc.value.code == 0
+    assert "examples:" in capsys.readouterr().out

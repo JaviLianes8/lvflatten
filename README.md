@@ -50,6 +50,42 @@ ts = LVTimestamp(seconds=2082844800, fraction=0)  # 1970-01-01T00:00:00Z
 assert unpack(Timestamp, pack(Timestamp, ts)) == ts
 ```
 
+A schema can also be written in a compact text form and parsed back, which keeps long
+definitions readable and feeds the command-line tool:
+
+```python
+from lvflatten import parse_schema, format_schema
+
+schema = parse_schema("cluster(id:i32, name:string, grid:array(dbl, 2), ok:bool)")
+assert format_schema(schema) == "cluster(id:i32, name:string, grid:array(dbl, 2), ok:bool)"
+```
+
+## Command line
+
+The `lvflatten` command decodes flattened hex to JSON and encodes JSON back to hex, taking
+the schema in the text form above. Run `lvflatten --help` for the full list.
+
+```
+# Decode a cluster to JSON (big-endian by default).
+$ lvflatten unflatten -s "cluster(id:i32, name:string, ok:bool)" -x 000000070000000570726f626501
+{
+  "id": 7,
+  "name": "probe",
+  "ok": true
+}
+
+# Encode JSON back to hex.
+$ lvflatten flatten -s "array(dbl)" -j "[1.0, 2.0]"
+000000023ff00000000000004000000000000000
+
+# Little-endian, and drop the top-level size prefix.
+$ lvflatten unflatten -s "array(i16)" -x 01000200 --little --no-size
+[1, 2]
+```
+
+The hex may contain spaces or newlines, and when `-x` or `-j` is omitted the input is read
+from standard input, so flattened data can be piped straight in.
+
 ## Supported types
 
 | Schema | LabVIEW type | Flattened form |
@@ -87,11 +123,12 @@ standard library, fully typed, with the type declared explicitly so the round-tr
 
 ## Scope and limits
 
-In scope for 0.1: the integer, float (SGL, DBL, EXT), boolean, boolean-array, string, array
+In scope for 0.2: the integer, float (SGL, DBL, EXT), boolean, boolean-array, string, array
 (including multi-dimensional), cluster and 128-bit timestamp types listed above, big- and
-little-endian, and the top-level size toggle.
+little-endian, the top-level size toggle, the compact schema text form (`parse_schema` and
+`format_schema`), and the `lvflatten` command-line tool.
 
-Out of scope for 0.1 (may come later): variant, waveform, LabVIEW path, refnum, enum and
+Out of scope for 0.2 (may come later): variant, waveform, LabVIEW path, refnum, enum and
 fixed-point types, and parsing LabVIEW type descriptors to build a schema automatically. The
 extended float round-trips any value a Python `float` can hold exactly; magnitudes beyond the
 IEEE 754 double range are lossy. `unpack` consumes the whole buffer and treats trailing bytes
