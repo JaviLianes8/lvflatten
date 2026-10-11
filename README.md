@@ -67,8 +67,11 @@ assert unpack(Timestamp, pack(Timestamp, ts)) == ts
 ## Why
 
 LabVIEW's "Flatten To String" turns any wire into a compact binary blob, and it is the usual
-shape of data that leaves LabVIEW over TCP, UDP or a file. The format is documented (NI,
-"Flattened Data", https://www.ni.com/docs/en-US/bundle/labview/page/flattened-data.html) but
+shape of data that leaves LabVIEW over TCP, UDP or a file. LabVIEW unflattens it natively, and
+OpenG's Variant Data Library adds variant and type-descriptor tooling on top, but both run
+inside LabVIEW and neither is callable from a Python process with no LabVIEW present. The
+format is documented (NI, "Flattened Data",
+https://www.ni.com/docs/en-US/bundle/labview/page/flattened-data.html) but
 it is schema-driven: the bytes alone do not say what they are, so a reader outside LabVIEW
 has to know the type up front. That makes decoding it from Python a recurring, unsolved ask.
 The most-cited example is the NI forum thread "Python client to unflatten received string
