@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from ._codec import pack, unpack
 from ._errors import LVFlattenError, SchemaError, TruncatedDataError
-from ._parse import format_schema, parse_schema
+from ._format import format_schema
+from ._parse import parse_schema
 from ._schema import (
     DBL,
     EXT,

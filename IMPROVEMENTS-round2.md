@@ -61,9 +61,9 @@ floats, strings, arrays of other types, clusters and timestamps are unchanged.
 - JSON output of NaN and Infinity relies on Python's `json` extension tokens (`NaN`,
   `Infinity`); the real-e2e test asserts they round-trip through the installed script, so the
   behavior is now pinned rather than assumed.
-- `_parse.py` remains the longest module at 205 lines; it predates this round and was left
-  untouched to keep the change additive. Splitting the tokenizer from the parser is a candidate
-  for a later, non-fixture round.
+- `_parse.py` was the longest module at 205 lines, over the 200-line limit. Its `format_schema`
+  renderer moved to a new `_format.py`, so both modules are now comfortably under the limit and
+  the parser and renderer are cleanly separated.
 
 ## Out of scope for round 2
 
