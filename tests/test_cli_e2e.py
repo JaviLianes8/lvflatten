@@ -8,9 +8,11 @@ fixtures are the same golden LabVIEW bytes used in the contract test.
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 _RECORD_SCHEMA = (
     "cluster(count:i32, temps:array(dbl), label:string, enabled:bool, "
@@ -79,4 +81,7 @@ def test_cli_reports_truncated_data_on_stderr_with_exit_one() -> None:
 def test_cli_version_prints_the_number() -> None:
     result = _run("--version")
     assert result.returncode == 0
-    assert "0.3.0" in result.stdout
+    pyproject = (Path(__file__).resolve().parent.parent / "pyproject.toml").read_text("utf-8")
+    version = re.search(r'^version = "([^"]+)"$', pyproject, re.MULTILINE)
+    assert version is not None
+    assert result.stdout.strip() == f"lvflatten {version.group(1)}"
