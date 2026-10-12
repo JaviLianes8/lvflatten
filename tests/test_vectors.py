@@ -1,8 +1,8 @@
-"""Known-byte vectors cross-checked against NI's "Flattened Data" documentation.
+"""Known-byte vectors hand-derived from the documented layout rules (not copied from NI).
 
 LabVIEW flattens numbers big-endian, prepends an I32 length to strings and arrays, and lays
 cluster fields out back to back with no padding. These fixed expectations guard the wire
-format, not just the round-trip.
+format, not just the round-trip; NI's own worked examples are in ``test_ni_reference.py``.
 """
 
 from lvflatten import (
