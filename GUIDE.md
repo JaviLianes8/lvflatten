@@ -213,15 +213,23 @@ except SchemaError as exc:
 Decoding is safe on untrusted input. Work is linear in the input size, and size headers that
 claim more data than exists fail at once. Objects that cost no input bytes (the rows of an
 array with a zero dimension, and the dicts of an array of empty clusters, counted through
-every nesting level) share a budget of 65536 plus one per input byte; beyond it `DataError`
-is raised. Everything else the decoder builds consumes input, so memory grows linearly with
-the data, by a factor fixed by the schema rather than by the bytes. `unpack_from` reads
-`bytearray` and `memoryview` input in place, so walking a long buffer stays linear.
+every nesting level) share a budget of 1024 plus one per input byte; beyond it `DataError`
+is raised. For `unpack_from` the input bytes are only those the value has read, so bytes
+further along a stream cannot be borrowed. Everything else the decoder builds consumes
+input, so memory grows linearly with the data, by a factor fixed by the schema rather than
+by the bytes. An array has at most 64 dimensions.
+
+`data` may be any object supporting the buffer protocol: `bytes`, `bytearray`, `memoryview`,
+`array.array`, `mmap` and so on. `unpack_from` reads it in place (a strided view of single
+bytes too), so walking a long buffer stays linear, and releases it before returning or
+raising, so a `bytearray` can grow inside the `except` block that caught a
+`TruncatedDataError`.
 
 Schemas are ordinary immutable values: they compare by value, hash, copy and pickle (so they
 can be sent to worker processes). A schema nested thousands of levels deep is refused by the
 text form and by `pack`, `unpack` and `format_schema` with `SchemaError`, but Python's own
-`repr` and `hash` of such an object may hit the interpreter's recursion limit.
+`repr`, `hash`, `copy.deepcopy` and `pickle` of such an object may hit the interpreter's
+recursion limit. `TrailingDataError` pickles with its `count`.
 
 ## 5. The schema text form
 

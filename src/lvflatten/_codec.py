@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Literal
 
 from ._array import pack_array, unpack_array
+from ._buffer import as_view, release
 from ._cluster import pack_cluster, unpack_cluster
 from ._compound import Array, Cluster, String
 from ._errors import DataError, SchemaError, TrailingDataError, short
@@ -31,21 +32,12 @@ def _check_flag(prepend_size: object) -> bool:
     return prepend_size
 
 
-def _as_view(data: object) -> bytes | memoryview:
-    """Return ``data`` as bytes, or as a flat byte view of it, without copying the buffer."""
-    if isinstance(data, bytes):
-        return data
-    if not isinstance(data, (bytearray, memoryview)):
-        raise TypeError(f"data must be bytes-like, got {type(data).__name__}")
-    try:
-        view = memoryview(data)
-        return view.cast("B") if view.c_contiguous else memoryview(view.tobytes())
-    except ValueError:
-        raise TypeError("data is a released or unusable memoryview") from None
-
-
 def _as_data(data: object) -> bytes:
-    return bytes(_as_view(data))
+    raw = as_view(data)
+    try:
+        return bytes(raw)
+    finally:
+        release(raw)
 
 
 def _check_schema(schema: object) -> Schema:

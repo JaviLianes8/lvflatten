@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Literal
 
-from ._codec import _as_view, _check_schema, _prefix, _unpack_node
+from ._buffer import as_view, release
+from ._codec import _check_schema, _prefix, _unpack_node
 from ._errors import SchemaError, short
 from ._reader import Reader
 from ._schema import Schema
@@ -33,12 +34,15 @@ def unpack_from(
     """
     node = _check_schema(schema)
     bo = _prefix(byte_order)
-    raw = _as_view(data)  # no per-call copy, so walking a long buffer stays linear
-    if isinstance(offset, bool) or not isinstance(offset, int) or not 0 <= offset <= len(raw):
-        raise SchemaError(f"offset must be an int from 0 to {len(raw)}, got {short(offset)}")
-    reader = Reader(raw, offset)
+    raw = as_view(data)  # no per-call copy, so walking a long buffer stays linear
     try:
-        value = _unpack_node(node, reader, bo)
-    except RecursionError:
-        raise SchemaError("the schema nests too deeply") from None
-    return value, reader.position
+        if isinstance(offset, bool) or not isinstance(offset, int) or not 0 <= offset <= len(raw):
+            raise SchemaError(f"offset must be an int from 0 to {len(raw)}, got {short(offset)}")
+        reader = Reader(raw, offset, stream=True)
+        try:
+            value = _unpack_node(node, reader, bo)
+        except RecursionError:
+            raise SchemaError("the schema nests too deeply") from None
+        return value, reader.position
+    finally:
+        release(raw)  # an error kept alive by the caller must not pin their bytearray

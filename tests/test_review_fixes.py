@@ -87,21 +87,21 @@ def _count(n: int) -> bytes:
 
 
 def test_free_object_budget_is_a_floor_plus_one_per_input_byte() -> None:
-    # 65536 free objects plus one per input byte: four header bytes allow 65540 empty clusters.
-    assert len(unpack(Array(Cluster([])), _count(65540))) == 65540  # type: ignore[arg-type]
+    # 1024 free objects plus one per input byte: four header bytes allow 1028 empty clusters.
+    assert len(unpack(Array(Cluster([])), _count(1028))) == 1028  # type: ignore[arg-type]
     with pytest.raises(DataError):
-        unpack(Array(Cluster([])), _count(65541))
-    # Eight header bytes allow 65544 empty rows.
-    assert len(unpack(Array(I8, 2), _count(65544) + _count(0))) == 65544  # type: ignore[arg-type]
+        unpack(Array(Cluster([])), _count(1029))
+    # Eight header bytes allow 1032 empty rows.
+    assert len(unpack(Array(I8, 2), _count(1032) + _count(0))) == 1032  # type: ignore[arg-type]
     with pytest.raises(DataError):
-        unpack(Array(I8, 2), _count(65545) + _count(0))
+        unpack(Array(I8, 2), _count(1033) + _count(0))
 
 
 def test_nested_empty_clusters_are_charged_per_dict() -> None:
     two_dicts = Cluster([("x", Cluster([]))])
-    assert len(unpack(Array(two_dicts), _count(32770))) == 32770  # type: ignore[arg-type]
+    assert len(unpack(Array(two_dicts), _count(514))) == 514  # type: ignore[arg-type]
     with pytest.raises(DataError):
-        unpack(Array(two_dicts), _count(32771))
+        unpack(Array(two_dicts), _count(515))
 
 
 def test_what_pack_writes_unpack_reads_for_small_empty_shapes() -> None:

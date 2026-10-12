@@ -21,7 +21,7 @@ def _items(value: object) -> list[object]:
     """Copy one level of the value into a plain list, so lengths cannot lie."""
     if not isinstance(value, (list, tuple)):
         raise SchemaError("expected a list nested as deep as the array's dimensions")
-    return list(value)
+    return list(iter(value))  # iter() ignores an overridden __len__
 
 
 def _shape(value: object, ndims: int) -> list[int]:

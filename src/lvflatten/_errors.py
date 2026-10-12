@@ -77,6 +77,9 @@ class TrailingDataError(DataError):
         super().__init__(f"{count} trailing {noun} left after the value")
         self.count = count
 
+    def __reduce__(self) -> tuple[type[TrailingDataError], tuple[int]]:
+        return (type(self), (self.count,))
+
 
 def short(value: object) -> str:
     """Return ``repr(value)`` cut to a bounded length, for use inside error messages."""

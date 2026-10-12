@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from ._errors import SchemaError, short
 from ._schema import Boolean, Schema
 
+MAX_DIMS = 64
+
 
 @dataclass(frozen=True, repr=False)
 class String(Schema):
@@ -46,7 +48,8 @@ class Array(Schema):
     """A LabVIEW array: one I32 size per dimension, then the elements in row-major order.
 
     The value is a list (nested ``ndims`` deep) or a tuple; rows must be rectangular, and
-    unpack always returns lists. ``BoolArray`` is a ready-made ``Array(Boolean)``.
+    unpack always returns lists. ``ndims`` runs from 1 to 64. ``BoolArray`` is a ready-made
+    ``Array(Boolean)``.
 
     >>> from lvflatten import I8, Array, pack
     >>> pack(Array(I8, 2), [[1, 2, 3], [4, 5, 6]]).hex()
@@ -64,6 +67,8 @@ class Array(Schema):
             raise SchemaError(f"an array element must be a schema, got {short(self.element)}")
         if isinstance(self.ndims, bool) or not isinstance(self.ndims, int) or self.ndims < 1:
             raise SchemaError("an array needs a whole number of dimensions, at least one")
+        if self.ndims > MAX_DIMS:
+            raise SchemaError(f"an array may have at most {MAX_DIMS} dimensions")
 
     def __repr__(self) -> str:
         if self.ndims == 1:

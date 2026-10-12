@@ -39,8 +39,8 @@ Stable in 1.0: `pack` and `unpack` with `byte_order` and `prepend_size`; the sch
   `parse_schema`. The internal `BoolArrayType` class is gone. As a side effect,
   `pack(BoolArray, ..., prepend_size=False)` now drops the count like any other top-level
   array (0.3.0 kept it).
-- **`Schema` is a base class** instead of a `typing` union, so `isinstance(x, Schema)` works
-  and every node has a docstring. Annotations using `Schema` keep working. `Schema()` itself
+- **`Schema` is a base class** instead of a `typing` union. `isinstance(x, Schema)` behaves
+  as before, every node has a docstring, and annotations using `Schema` keep working. `Schema()` itself
   cannot be instantiated (`TypeError`).
 - **`byte_order` is typed as `Literal["big", "little"]`.** Runtime behaviour is unchanged;
   type checkers now flag other strings. A variable typed as plain `str` needs a `Literal`
@@ -49,7 +49,7 @@ Stable in 1.0: `pack` and `unpack` with `byte_order` and `prepend_size`; the sch
   1.0 raises `SchemaError` for anything but `True` or `False`.
 - **Schema nodes are validated when built**: `String` checks that the codec exists and is a
   text codec (`"hex"`, `"base64"` or `"zlib"` are refused),
-  `Array` checks its element and dimension count, and `Cluster` requires unique `str` names
+  `Array` checks its element and dimension count (1 to 64), and `Cluster` requires unique `str` names
   and real schema nodes. Each raises `SchemaError`. Duplicate field names used to be
   accepted and silently lost data on unpack.
 - **Ragged arrays are refused.** `pack(Array(I32, 2), [[1, 2], [3]])` used to write bytes
@@ -74,15 +74,19 @@ Stable in 1.0: `pack` and `unpack` with `byte_order` and `prepend_size`; the sch
   back (the "rest of the flattened string" output of LabVIEW's Unflatten From String).
 - `LVTimestamp.from_datetime()` and `LVTimestamp.to_datetime()`; a naive datetime raises
   `SchemaError` and an out-of-range time stamp raises `DataError`.
-- `unpack` accepts any bytes-like object (`bytes`, `bytearray`, `memoryview`) and raises
-  `TypeError` for anything else.
+- `unpack` and `unpack_from` accept any object supporting the buffer protocol (`bytes`,
+  `bytearray`, `memoryview`, `array.array`, `mmap`, ...) and raise `TypeError` for anything
+  else. `unpack_from` reads it in place and releases it before returning or raising, so a
+  caller may grow its `bytearray` inside the `except` block.
 - Quoted field names in the schema text form (`cluster("Error Code":i32)`), so any name
   round-trips through `format_schema` and `parse_schema`; nesting beyond 64 levels is refused.
 - Decoding untrusted data is bounded: size headers that promise more data than exists fail at
   once, and objects that cost no input bytes (rows of an empty array, dicts of empty
-  clusters at any depth) share a budget of 65536 plus one per input byte (`DataError` beyond
-  that).
-- Schemas copy and pickle (0.3.0 `Cluster` could not be deep-copied or pickled).
+  clusters at any depth) share a budget of 1024 plus one per input byte (`DataError` beyond
+  that). For `unpack_from` only the bytes the value itself has read count, so walking a
+  stream of hostile records stays linear.
+- Schemas and `TrailingDataError` copy and pickle (0.3.0 `Cluster` could not be deep-copied
+  or pickled).
 - Values that misbehave (a list subclass that lies about its length, a `str` whose `encode`
   returns text, a `float` subclass with a broken `__float__`, a mapping whose `in` lies) raise
   `SchemaError` or pack correctly instead of corrupting output or leaking `TypeError` or
@@ -99,7 +103,7 @@ Stable in 1.0: `pack` and `unpack` with `byte_order` and `prepend_size`; the sch
 
 - The hand-written time stamp vector labelled 2002-01-01 encoded 2001-12-31; it is corrected
   and cross-checked against `datetime`. Vectors that were labelled as NI-documented but were
-  hand-derived are now labelled as hand-derived.
+  hand-derived are now labelled as hand-derived, in the tests and in the capture manifest.
 
 ## [0.3.0]
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from ._errors import DataError, TruncatedDataError
 
-FREE_FLOOR = 1 << 16
+FREE_FLOOR = 1024
 
 
 class Reader:
@@ -13,15 +13,20 @@ class Reader:
     Some values cost no input bytes (the rows of an array with a zero dimension, or the
     containers inside an array of empty clusters). ``spend_free`` charges those against a
     budget of ``FREE_FLOOR`` objects plus one per input byte, so a few hostile bytes cannot ask
-    for billions of objects while small legitimate shapes still decode.
+    for billions of objects while small legitimate shapes still decode. The input bytes are
+    the whole buffer for a value that must fill it, and only the bytes read so far when the
+    value is one of several back to back (``stream``), so a long buffer cannot lend its
+    size to every value read from it.
     """
 
-    __slots__ = ("_data", "_free", "_pos")
+    __slots__ = ("_data", "_pos", "_spent", "_start", "_stream")
 
-    def __init__(self, data: bytes | memoryview, start: int = 0) -> None:
+    def __init__(self, data: bytes | memoryview, start: int = 0, *, stream: bool = False) -> None:
         self._data = data
         self._pos = start
-        self._free = FREE_FLOOR + len(data) - start
+        self._start = start
+        self._spent = 0
+        self._stream = stream
 
     def take(self, count: int) -> bytes:
         """Return the next ``count`` bytes, or raise if the buffer is too short."""
@@ -37,8 +42,9 @@ class Reader:
 
     def spend_free(self, count: int) -> None:
         """Charge ``count`` objects that consume no input; raise once the budget runs out."""
-        self._free -= count
-        if self._free < 0:
+        self._spent += count
+        end = self._pos if self._stream else len(self._data)
+        if self._spent > FREE_FLOOR + end - self._start:
             raise DataError(
                 f"the data declares {count} empty items, more than its size can justify"
             )
