@@ -49,3 +49,9 @@ def test_prepend_size_false_needs_fixed_size_elements() -> None:
 def test_prepend_size_false_rejects_partial_element() -> None:
     with pytest.raises(DataError):
         unpack(Array(DBL), b"\x00\x00\x00", prepend_size=False)
+
+
+def test_prepend_size_false_drops_every_dimension_of_a_2d_array() -> None:
+    # LabVIEW's "prepend array or string size?" switch removes all the dimension sizes.
+    assert pack(Array(I32, 2), [[1], [2]], prepend_size=False) == bytes.fromhex("0000000100000002")
+    assert pack(Array(I32, 3), [[[7]]], prepend_size=False) == bytes.fromhex("00000007")
