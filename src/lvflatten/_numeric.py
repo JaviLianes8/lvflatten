@@ -20,13 +20,17 @@ def _kind(schema: IntType) -> str:
     return f"{schema.bits}-bit {'signed' if schema.signed else 'unsigned'} integer"
 
 
+def _article(schema: IntType) -> str:
+    return "an" if schema.bits == 8 else "a"
+
+
 def pack_int(schema: IntType, value: object, bo: str, out: bytearray) -> None:
     if isinstance(value, bool) or not isinstance(value, int):
         raise SchemaError(f"expected an int for a {_kind(schema)}, got {type(value).__name__}")
     try:
         out += struct.pack(bo + _int_format(schema), value)
     except (struct.error, OverflowError):
-        raise SchemaError(f"value out of range for an {_kind(schema)}") from None
+        raise SchemaError(f"value out of range for {_article(schema)} {_kind(schema)}") from None
 
 
 def unpack_int(schema: IntType, reader: Reader, bo: str) -> int:

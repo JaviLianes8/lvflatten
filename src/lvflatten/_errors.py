@@ -69,11 +69,12 @@ class TrailingDataError(DataError):
     ...     unpack(I16, b"\\x00\\x01\\x02")
     ... except TrailingDataError as exc:
     ...     print(exc.count, exc)
-    1 1 trailing bytes left after the value
+    1 1 trailing byte left after the value
     """
 
     def __init__(self, count: int) -> None:
-        super().__init__(f"{count} trailing bytes left after the value")
+        noun = "byte" if count == 1 else "bytes"
+        super().__init__(f"{count} trailing {noun} left after the value")
         self.count = count
 
 

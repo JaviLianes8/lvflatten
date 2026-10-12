@@ -25,6 +25,18 @@ def _prefix(byte_order: object) -> str:
     raise SchemaError(f"byte_order must be 'big' or 'little', got {short(byte_order)}")
 
 
+def _check_flag(prepend_size: object) -> bool:
+    if not isinstance(prepend_size, bool):
+        raise SchemaError(f"prepend_size must be True or False, got {short(prepend_size)}")
+    return prepend_size
+
+
+def _as_data(data: object) -> bytes:
+    if not isinstance(data, (bytes, bytearray, memoryview)):
+        raise TypeError(f"data must be bytes-like, got {type(data).__name__}")
+    return as_bytes(data)
+
+
 def _check_schema(schema: object) -> Schema:
     if not isinstance(schema, Schema):
         raise SchemaError(f"expected a schema node, got {short(schema)}")
@@ -76,13 +88,11 @@ def _unpack_node(schema: Schema, reader: Reader, bo: str) -> object:
     raise SchemaError(f"unsupported schema: {short(schema)}")
 
 
-def _unpack_without_size(schema: Schema, data: bytes, bo: str) -> object:
+def _unpack_without_size(schema: String | BytesType | Array, data: bytes, bo: str) -> object:
     if isinstance(schema, String):
         return decode_text(schema, data)
     if isinstance(schema, BytesType):
         return data
-    if not isinstance(schema, Array):
-        raise SchemaError("prepend_size=False only applies to a top-level string or array")
     if schema.ndims != 1:
         raise SchemaError("prepend_size=False needs a one-dimensional array to unpack")
     size = fixed_size(schema.element)
@@ -118,6 +128,7 @@ def pack(
     """
     node = _check_schema(schema)
     bo = _prefix(byte_order)
+    _check_flag(prepend_size)
     out = bytearray()
     try:
         _pack_node(node, value, bo, out)
@@ -152,9 +163,8 @@ def unpack(
     """
     node = _check_schema(schema)
     bo = _prefix(byte_order)
-    if not isinstance(data, (bytes, bytearray, memoryview)):
-        raise TypeError(f"data must be bytes-like, got {type(data).__name__}")
-    raw = as_bytes(data)
+    _check_flag(prepend_size)
+    raw = _as_data(data)
     try:
         if not prepend_size and isinstance(node, (String, BytesType, Array)):
             return _unpack_without_size(node, raw, bo)

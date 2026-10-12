@@ -36,6 +36,7 @@ PUBLIC_API: list[str] = [
     "pack",
     "parse_schema",
     "unpack",
+    "unpack_from",
 ]
 
 

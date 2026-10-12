@@ -54,10 +54,13 @@ def _decode(bits: int) -> float:
         significand, scale = fraction, 1 - _BIAS - _FRACTION_BITS
     else:
         significand, scale = _HIDDEN | fraction, exponent - _BIAS - _FRACTION_BITS
-    try:
-        magnitude = math.ldexp(float(significand), scale)
-    except OverflowError:
-        magnitude = math.inf  # beyond the double range: rounds to infinity, as documented
+    if scale < 0:
+        magnitude = significand / (1 << -scale)  # int / int rounds once, also into subnormals
+    else:
+        try:
+            magnitude = math.ldexp(float(significand), scale)
+        except OverflowError:
+            magnitude = math.inf  # beyond the double range: rounds to infinity, as documented
     return math.copysign(magnitude, sign)
 
 

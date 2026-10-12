@@ -6,7 +6,19 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from lvflatten import U8, Array, Bytes, Cluster, LVTimestamp, String, Timestamp, pack, unpack
+from lvflatten import (
+    U8,
+    Array,
+    Bytes,
+    Cluster,
+    DataError,
+    LVTimestamp,
+    SchemaError,
+    String,
+    Timestamp,
+    pack,
+    unpack,
+)
 
 
 def test_bytes_round_trip_and_wire_form() -> None:
@@ -59,7 +71,7 @@ def test_from_datetime_respects_the_timezone() -> None:
 
 
 def test_naive_datetime_is_refused() -> None:
-    with pytest.raises(ValueError, match="timezone-aware"):
+    with pytest.raises(SchemaError, match="timezone-aware"):
         LVTimestamp.from_datetime(datetime(2000, 1, 1))
 
 
@@ -80,5 +92,5 @@ def test_dates_before_1904_are_negative_seconds() -> None:
 
 
 def test_out_of_range_time_stamp_raises_value_error() -> None:
-    with pytest.raises(ValueError, match="outside the range"):
+    with pytest.raises(DataError, match="outside the range"):
         LVTimestamp((1 << 63) - 1, 0).to_datetime()

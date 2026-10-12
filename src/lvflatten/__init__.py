@@ -12,8 +12,6 @@ Declare the LabVIEW type with a schema, then ``pack`` a Python value into flatte
 {'id': 7, 'label': 'probe'}
 """
 
-from __future__ import annotations
-
 from ._codec import pack, unpack
 from ._compound import Array, BoolArray, Cluster, String
 from ._errors import (
@@ -43,6 +41,7 @@ from ._schema import (
     Schema,
     Timestamp,
 )
+from ._stream import unpack_from
 
 __version__ = "1.0.0"
 
@@ -76,4 +75,5 @@ __all__ = [
     "pack",
     "parse_schema",
     "unpack",
+    "unpack_from",
 ]

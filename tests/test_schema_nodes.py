@@ -48,7 +48,7 @@ _NAMES = [
 ]
 
 
-@pytest.mark.parametrize(("node", "name"), zip(_SCALARS, _NAMES, strict=True), ids=_NAMES)
+@pytest.mark.parametrize(("node", "name"), list(zip(_SCALARS, _NAMES, strict=True)), ids=_NAMES)
 def test_scalar_repr_is_its_public_name(node: Schema, name: str) -> None:
     assert repr(node) == name
     assert isinstance(node, Schema)

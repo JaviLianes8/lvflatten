@@ -15,10 +15,10 @@ class Reader:
 
     __slots__ = ("_data", "_free", "_pos")
 
-    def __init__(self, data: bytes) -> None:
+    def __init__(self, data: bytes, start: int = 0) -> None:
         self._data = data
-        self._pos = 0
-        self._free = len(data)
+        self._pos = start
+        self._free = len(data) - start
 
     def take(self, count: int) -> bytes:
         """Return the next ``count`` bytes, or raise if the buffer is too short."""
@@ -39,6 +39,11 @@ class Reader:
             raise DataError(
                 f"the data declares {count} empty items, more than its size can justify"
             )
+
+    @property
+    def position(self) -> int:
+        """Offset of the next unread byte."""
+        return self._pos
 
     @property
     def remaining(self) -> int:

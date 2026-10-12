@@ -23,6 +23,11 @@ class Schema:
 
     __slots__ = ()
 
+    def __new__(cls, *args: object, **kwargs: object) -> Schema:
+        if cls is Schema:
+            raise TypeError("Schema is the base class; build a node such as I32 or Array(...)")
+        return super().__new__(cls)
+
 
 _INT_NAMES = {
     (8, True): "I8",

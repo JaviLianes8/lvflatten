@@ -95,7 +95,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "unflatten":
             return _run_unflatten(args)
         return _run_flatten(args)
-    except (LVFlattenError, ValueError, RecursionError) as exc:
+    except (LVFlattenError, ValueError, LookupError, RecursionError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
