@@ -4,18 +4,37 @@ build-backend = "hatchling.build"
 
 [project]
 name = "lvflatten"
-version = "0.3.0"
+version = "1.0.0"
 description = "Schema-driven codec for LabVIEW's Flatten To String binary format"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Javier Lianes", email = "javier@lianes8studio.com" }]
-keywords = []
+keywords = [
+    "labview",
+    "flatten",
+    "unflatten",
+    "flatten-to-string",
+    "national-instruments",
+    "binary",
+    "codec",
+    "serialization",
+]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries :: Python Modules",
     "Typing :: Typed",
 ]
 dependencies = []
@@ -27,8 +46,9 @@ dev = ["ruff", "mypy", "pytest", "build", "twine"]
 lvflatten = "lvflatten._cli:main"
 
 [project.urls]
-Homepage = "https://lianes8studio.com"
-Repository = "https://github.com/JaviLianes8/lvflatten"
+Homepage = "https://github.com/JaviLianes8/lvflatten"
+Source = "https://github.com/JaviLianes8/lvflatten"
+Documentation = "https://github.com/JaviLianes8/lvflatten/blob/main/GUIDE.md"
 Issues = "https://github.com/JaviLianes8/lvflatten/issues"
 Changelog = "https://github.com/JaviLianes8/lvflatten/blob/main/CHANGELOG.md"
 LinkedIn = "https://www.linkedin.com/in/jlianes/"
@@ -36,6 +56,18 @@ Funding = "https://buymeacoffee.com/jlianesglrs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lvflatten"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/lvflatten",
+    "tests",
+    "README.md",
+    "GUIDE.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "pyproject.toml",
+]
+exclude = ["**/__pycache__", "**/*.pyc"]
 
 [tool.ruff]
 line-length = 100
