@@ -16,7 +16,7 @@ def test_little_endian_round_trips_a_cluster_like_array() -> None:
 
 def test_unknown_byte_order_raises() -> None:
     with pytest.raises(SchemaError):
-        pack(I32, 1, byte_order="middle")
+        pack(I32, 1, byte_order="middle")  # type: ignore[arg-type]
 
 
 def test_prepend_size_false_drops_top_level_string_prefix() -> None:
