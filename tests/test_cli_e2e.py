@@ -3,7 +3,7 @@
 These shell out to the command with ``subprocess``: no imports of the package, no mocks.
 They need an install (``pip install -e .``); without the console script on PATH they fall
 back to running the module in a fresh interpreter, still a real process round-trip. The
-fixtures are the same golden LabVIEW bytes used in the contract test.
+fixtures are the same hand-derived golden bytes used in the contract test.
 """
 
 import json

@@ -2,7 +2,8 @@ import pytest
 
 from lvflatten import LVTimestamp, SchemaError, Timestamp, pack, unpack
 
-# 2082844800 seconds separate the LabVIEW 1904 epoch from the Unix 1970 epoch (NI docs).
+# 2082844800 seconds separate the LabVIEW 1904 epoch from the Unix 1970 epoch
+# (derived: 1904 to 1970 is 66 years of 365 days plus 17 leap days, 24107 days).
 UNIX_EPOCH_IN_1904_SECONDS = 2082844800
 
 

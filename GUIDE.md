@@ -139,6 +139,10 @@ assert unpack(Timestamp, pack(Timestamp, stamp)).to_datetime() == moment
 Both `pack` and `unpack` take two keyword-only options:
 
 - `byte_order`: `"big"` (the default, as LabVIEW) or `"little"`.
+  With `"little"`, every number is byte-swapped on its own. A time stamp is written as
+  its seconds (I64) then its fraction (U64), each little-endian; an EXT is the whole
+  16-byte value reversed. Big-endian output is checked against LabVIEW 2026; these two
+  little-endian layouts are not, as no capture of them was possible.
 - `prepend_size`: `True` by default. `False` drops the size of a top-level string, `Bytes`
   or array, like LabVIEW's "prepend array or string size?" input. Nested sizes are always
   kept. On unpack, `False` works for strings, `Bytes`, and one-dimensional arrays of

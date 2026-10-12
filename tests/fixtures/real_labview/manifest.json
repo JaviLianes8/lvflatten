@@ -378,7 +378,7 @@
       "intended_file": "flatten_dbl_array_1d.bin",
       "status": "BLOCKED_NOT_CAPTURED",
       "blocker": "No shipped, runnable VI on this machine exposes a settable DBL-array (or any typed numeric-array) control wired to the raw Flatten-To-String primitive. The only array-capable clean flatten wrapper found is BLOBToFlattenVariant.vi, whose control is a byte/U8 array (captured separately as flatten_u8_array_*). vi.lib/Utility/VariantFlattenExp.vi has a settable 'variant' control but (a) ignores a COM-set value (SetControlValue does not land on the variant terminal, the flatten always emits the empty-variant form) and (b) flattens in variant format with an embedded type descriptor (30-byte constant), not the clean typed array flatten. The VI-Analyzer 'Flt Array/Flatten Value.vi' emits a config string, not a raw binary flatten (verified: its connector 'Value' is a String and a set DBL array produces empty output). Authoring a VI with a DBL-array control needs VI Scripting, which is not exposed via COM.",
-      "ni_documented_reference_NOT_from_labview": "00000003 3ff0000000000000 4000000000000000 4008000000000000 (U32 count=3 then 3 big-endian DBLs; spaces for readability)",
+      "hand_derived_reference_not_from_labview": "00000003 3ff0000000000000 4000000000000000 4008000000000000 (U32 count=3 then 3 big-endian DBLs; spaces for readability)",
       "superseded_by_2026_10_12": "flatten_dbl_array_1d_1234.bin (values [1,2,3,4])"
     },
     {
@@ -386,7 +386,7 @@
       "intended_file": "flatten_dbl_array_2d.bin",
       "status": "BLOCKED_NOT_CAPTURED",
       "blocker": "Same blocker as the 1-D DBL array: no shipped runnable VI exposes a settable 2-D numeric-array control wired to the raw Flatten-To-String primitive, VariantFlattenExp.vi ignores COM-set values and emits variant-format bytes, and the VI-Analyzer '2D Flt/Flatten Value.vi' emits a config string rather than a raw flatten. Authoring one needs VI Scripting (not exposed via COM).",
-      "ni_documented_reference_NOT_from_labview": "00000002 00000002 3ff0... 4000... 4008... 4010... (two U32 dims=2,2 then 4 big-endian DBLs row-major)",
+      "hand_derived_reference_not_from_labview": "00000002 00000002 3ff0... 4000... 4008... 4010... (two U32 dims=2,2 then 4 big-endian DBLs row-major)",
       "superseded_by_2026_10_12": "flatten_dbl_array_2d_2x4.bin, flatten_dbl_array_2d_3x4.bin (other shapes/values)"
     },
     {
@@ -394,14 +394,14 @@
       "intended_file": "flatten_scalar_u8_u16_i64.bin",
       "status": "BLOCKED_NOT_CAPTURED",
       "blocker": "No shipped, runnable VI exposes a settable U8, U16, I64 or U64 scalar control wired to raw Flatten-To-String. The shipped numeric flatten controls are DBL (NumToFlattenVariant.vi 'Numeric', also used by EnumNumToFlattenVariant.vi) and a single U32 scalar (BitArrayToFlattenVariant.vi 'Bit Array'); setting an integer into the DBL control coerces to DBL. The 32-bit width was captured via the U32 control (flatten_i32_neg19.bin, flatten_u32_19.bin); the other integer widths would need controls of those exact types, which only VI Scripting could author.",
-      "ni_documented_reference_NOT_from_labview": "U8 200 -> c8 (1 byte); U16 40000 -> 9c40 (2 bytes big-endian); I64 -19 -> ffffffffffffffed (8 bytes big-endian two's complement)"
+      "hand_derived_reference_not_from_labview": "U8 200 -> c8 (1 byte); U16 40000 -> 9c40 (2 bytes big-endian); I64 -19 -> ffffffffffffffed (8 bytes big-endian two's complement)"
     },
     {
       "name": "LabVIEW Timestamp 2002-01-01 00:00:00 UTC",
       "intended_file": "flatten_timestamp.bin",
       "status": "BLOCKED_NOT_CAPTURED",
       "blocker": "No shipped, runnable VI exposes a settable Timestamp control wired to raw Flatten-To-String, and a Timestamp cannot be composed and set through COM/VARIANT. Authoring a VI with a Timestamp control wired to flatten needs VI Scripting (not exposed via COM).",
-      "ni_documented_reference_NOT_from_labview": "00000000b8555b00 0000000000000000 (i64 seconds since 1904 epoch = 0xB8555B00, then u64 fractional=0; 16 bytes total)",
+      "hand_derived_reference_not_from_labview": "00000000b856ac80 0000000000000000 (i64 seconds since 1904 epoch = 0xB856AC80, then u64 fractional=0; 16 bytes total)",
       "superseded_by_2026_10_12": "flatten_timestamp_e6f24884.bin (different instant, fraction 0)"
     },
     {
@@ -409,7 +409,7 @@
       "intended_file": "flatten_ext.bin",
       "status": "BLOCKED_NOT_CAPTURED",
       "blocker": "COM/VARIANT has no 80/128-bit extended type and no shipped runnable VI exposes a settable EXT control wired to raw Flatten-To-String. Authoring one needs VI Scripting (not exposed via COM).",
-      "ni_documented_reference_NOT_from_labview": "platform-dependent 80-bit/128-bit extended; not provided by NI quick-ref",
+      "hand_derived_reference_not_from_labview": "none written by hand; LabVIEW 2026 output later showed IEEE binary128 (see the superseding captures)",
       "superseded_by_2026_10_12": "flatten_ext_1p0.bin, flatten_ext_0p25.bin and other flatten_ext_*.bin (via datalog record)"
     },
     {
@@ -417,7 +417,7 @@
       "intended_file": "flatten_cluster.bin",
       "status": "BLOCKED_NOT_CAPTURED",
       "blocker": "Clusters cannot be composed or set via COM (SetControlValue has no way to build an arbitrary cluster layout), and no shipped runnable VI exposes a settable cluster control of this layout wired to raw Flatten-To-String. Authoring one needs VI Scripting (not exposed via COM).",
-      "ni_documented_reference_NOT_from_labview": "concatenation in cluster order: ffffffed 3fd0000000000000 00000003414243 00000004 00 01 01 00 (I32, DBL, len-prefixed string, then U32 bool-array count=4 + 4 bool bytes)",
+      "hand_derived_reference_not_from_labview": "concatenation in cluster order: ffffffed 3fd0000000000000 00000003414243 00000004 00 01 01 00 (I32, DBL, len-prefixed string, then U32 bool-array count=4 + 4 bool bytes)",
       "superseded_by_2026_10_12": "flatten_cluster_json_input.bin, flatten_cluster_bool_i32_string.bin (different layouts)"
     },
     {
@@ -425,21 +425,21 @@
       "intended_file": "flatten_fxp_w16i8_1p25.bin",
       "status": "BLOCKED_NOT_CAPTURED",
       "blocker": "COM has no fixed-point type and no shipped runnable VI exposes a settable FXP control wired to raw Flatten-To-String. Authoring one needs VI Scripting (not exposed via COM).",
-      "ni_documented_reference_NOT_from_labview": "0140 (16-bit container, 1.25 * 2^8 = 320 = 0x0140, big-endian)"
+      "hand_derived_reference_not_from_labview": "0140 (16-bit container, 1.25 * 2^8 = 320 = 0x0140, big-endian)"
     },
     {
       "name": "Flatten To JSON: DBL NaN / +Inf / -Inf / normal cluster",
       "intended_file": "flatten_json_naninf.json",
       "status": "BLOCKED_NOT_CAPTURED",
       "blocker": "'Flatten To JSON' is a diagram primitive; no shipped runnable wrapper VI exposes it with a settable control. The bundled 'JSONtext Toolkit' in vi.lib is only a VIPM link stub (no VIs). Capturing the primitive's exact token spelling needs a VI that cannot be authored headlessly (VI Scripting not exposed via COM).",
-      "ni_documented_reference_NOT_from_labview": "LabVIEW primitive typically emits NaN/Infinity/-Infinity bare tokens and full-precision numbers, but EXACT spelling must be captured, not assumed"
+      "hand_derived_reference_not_from_labview": "LabVIEW primitive typically emits NaN/Infinity/-Infinity bare tokens and full-precision numbers, but EXACT spelling must be captured, not assumed"
     },
     {
       "name": "Flatten To XML: cluster {I32,DBL,String}",
       "intended_file": "flatten_xml_cluster.xml",
       "status": "BLOCKED_NOT_CAPTURED",
       "blocker": "'Flatten To XML' is a diagram primitive; no shipped runnable wrapper exposes a settable cluster. The only shipped XML-flatten VIs are the VI-Analyzer config-tree ones, which emit a different, config-specific schema. Authoring a wrapper needs VI Scripting (not exposed via COM).",
-      "ni_documented_reference_NOT_from_labview": "<Cluster><Name>..</Name><NumElts>3</NumElts><I32>..</I32><DBL>..</DBL><String>..</String></Cluster> (schema must be captured for exactness)"
+      "hand_derived_reference_not_from_labview": "<Cluster><Name>..</Name><NumElts>3</NumElts><I32>..</I32><DBL>..</DBL><String>..</String></Cluster> (schema must be captured for exactness)"
     },
     {
       "name": "Scalar I16 / U16 / SGL / I64 (retry 2026-10-12)",
