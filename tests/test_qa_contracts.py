@@ -150,3 +150,17 @@ def test_trailing_count_and_error_hierarchy() -> None:
         assert issubclass(cls, LVFlattenError) and issubclass(cls, ValueError)
     assert issubclass(TruncatedDataError, DataError) and issubclass(TrailingDataError, DataError)
     assert not issubclass(SchemaError, DataError)
+
+
+def test_string_encodings_are_kept_under_their_canonical_name() -> None:
+    assert String("UTF8") == String("utf_8") == String()
+    assert String("Latin-1").encoding == "iso8859-1" == String("iso-8859-1").encoding
+    assert repr(String("CP1252")) == "String('cp1252')"
+
+
+def test_passing_a_node_class_says_so() -> None:
+    for cls in (String, Array, Cluster):
+        with pytest.raises(SchemaError, match=f"{cls.__name__} is a class"):
+            pack(cls, "x")  # type: ignore[arg-type]
+        with pytest.raises(SchemaError, match="is a class"):
+            unpack(cls, b"")  # type: ignore[arg-type]

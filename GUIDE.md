@@ -48,7 +48,9 @@ assert count == 42 and record == {"s": "x"}
 | `Timestamp` | `LVTimestamp` | 16 |
 | `Bytes` | `bytes` | 4 + length |
 
-Integers refuse `bool` and out-of-range values. Floats accept `int` or `float`. On decode a
+Integers refuse `bool` and out-of-range values. Floats accept `int` or `float`. Values must
+be the plain Python types (or subclasses of them): convert NumPy scalars with `.item()`
+first. On decode a
 Boolean is TRUE for any nonzero byte, as NI documents; on encode TRUE is always `01`.
 
 ```python
@@ -71,7 +73,8 @@ magnitudes beyond the double range become infinity and very small ones become ze
 ### Strings and bytes
 
 `String(encoding="utf-8")` is an I32 byte count followed by the encoded text. The encoding
-is any Python codec name and is checked when the node is built. LabVIEW on Windows writes
+is any Python codec name, checked when the node is built and kept under its canonical name
+(`String("UTF8") == String()`, `String("latin-1").encoding == "iso8859-1"`). LabVIEW on Windows writes
 text in the system ANSI code page, so use `String("cp1252")` (or your code page) for
 non-ASCII text from a Western Windows machine. `Bytes` has the same wire form but keeps the
 data as `bytes`, for LabVIEW strings used as byte buffers.
@@ -284,5 +287,7 @@ $ lvflatten unflatten -s "array(i16)" -x 01000200 --little --no-size
 ## 7. Stability
 
 From 1.0.0 the public API is the list in `lvflatten.__all__`, and it follows semantic
-versioning: no name, signature, default or error class changes before 2.0. Modules whose name
-starts with an underscore are internal.
+versioning: no name, signature, default or error class changes before 2.0. The documented
+attributes of the nodes (`String.encoding`, `Array.element`, `Array.ndims`, `Cluster.fields`)
+are part of it. Modules whose name starts with an underscore, and the classes of the scalar
+singletons, are internal. Error message wording is not part of the API.

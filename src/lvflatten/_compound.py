@@ -16,7 +16,8 @@ MAX_DIMS = 64
 class String(Schema):
     """A LabVIEW string: an I32 byte count followed by the encoded text.
 
-    ``encoding`` is any Python codec name and is checked when the node is built. LabVIEW on
+    ``encoding`` is any Python codec name; it is checked when the node is built and stored
+    under the codec's canonical name, so ``String("UTF8") == String()``. LabVIEW on
     Windows writes text in the system ANSI code page, so ``String("cp1252")`` is the usual
     choice for non-ASCII text from a Western Windows machine. Use ``Bytes`` for binary data.
 
@@ -33,11 +34,12 @@ class String(Schema):
         if not isinstance(self.encoding, str):
             raise SchemaError("a string encoding must be a codec name")
         try:
-            codecs.lookup(self.encoding)
+            canonical = codecs.lookup(self.encoding).name
             "".encode(self.encoding)  # bytes-to-bytes codecs such as hex or zlib fail here
             b"".decode(self.encoding)
         except (LookupError, TypeError, ValueError):
             raise SchemaError(f"unknown text encoding {short(self.encoding)}") from None
+        object.__setattr__(self, "encoding", canonical)
 
     def __repr__(self) -> str:
         return "String()" if self.encoding == "utf-8" else f"String({self.encoding!r})"

@@ -41,6 +41,9 @@ def _as_data(data: object) -> bytes:
 
 
 def _check_schema(schema: object) -> Schema:
+    if isinstance(schema, type) and issubclass(schema, Schema):
+        name = schema.__name__
+        raise SchemaError(f"{name} is a class; pass a schema node such as {name}(...)")
     if not isinstance(schema, Schema):
         raise SchemaError(f"expected a schema node, got {short(schema)}")
     return schema

@@ -38,7 +38,8 @@ Stable in 1.0: `pack` and `unpack` with `byte_order` and `prepend_size`; the sch
   0.3.0. `format_schema` writes it as `array(bool)`; `boolarray` is still accepted by
   `parse_schema`. The internal `BoolArrayType` class is gone. As a side effect,
   `pack(BoolArray, ..., prepend_size=False)` now drops the count like any other top-level
-  array (0.3.0 kept it).
+  array (0.3.0 kept it), and `unpack(BoolArray, data, prepend_size=False)` reads Booleans to
+  the end of the buffer (0.3.0 read a count first).
 - **`Schema` is a base class** instead of a `typing` union. `isinstance(x, Schema)` behaves
   as before, every node has a docstring, and annotations using `Schema` keep working. `Schema()` itself
   cannot be instantiated (`TypeError`).
@@ -48,10 +49,12 @@ Stable in 1.0: `pack` and `unpack` with `byte_order` and `prepend_size`; the sch
 - **`prepend_size` must be a `bool`.** 0.x treated any truthy or falsy value as the flag;
   1.0 raises `SchemaError` for anything but `True` or `False`.
 - **Schema nodes are validated when built**: `String` checks that the codec exists and is a
-  text codec (`"hex"`, `"base64"` or `"zlib"` are refused),
-  `Array` checks its element and dimension count (1 to 64), and `Cluster` requires unique `str` names
-  and real schema nodes. Each raises `SchemaError`. Duplicate field names used to be
-  accepted and silently lost data on unpack.
+  text codec (`"hex"`, `"base64"` or `"zlib"` are refused) and stores it under the codec's
+  canonical name, so `String("UTF8") == String()` and `String("latin-1").encoding` is
+  `"iso8859-1"`; `Array` checks its element and dimension count (1 to 64); and `Cluster`
+  requires unique `str` names and real schema nodes. Each raises `SchemaError`. Duplicate
+  field names used to be accepted and silently lost data on unpack. Passing a node class
+  instead of a node (`pack(String, "x")`) says so.
 - **Ragged arrays are refused.** `pack(Array(I32, 2), [[1, 2], [3]])` used to write bytes
   LabVIEW could not read back; it now raises `SchemaError`.
 - **No stray standard-library exceptions.** Out-of-range floats, EXT values and time stamp

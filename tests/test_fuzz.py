@@ -89,7 +89,7 @@ def _value(rng: random.Random, schema: Schema) -> object:
     if schema == Bytes:
         return rng.randbytes(rng.randint(0, 8))
     if isinstance(schema, String):
-        alphabet = string.printable + ("éü" if schema.encoding == "latin-1" else "中")
+        alphabet = string.printable + ("éü" if schema.encoding == "iso8859-1" else "中")
         return "".join(rng.choices(alphabet, k=rng.randint(0, 8)))
     if isinstance(schema, Array):
         return _rows(rng, schema, [rng.randint(0, 3) for _ in range(schema.ndims)])
