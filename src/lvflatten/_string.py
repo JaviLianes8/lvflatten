@@ -13,9 +13,12 @@ def encode_text(schema: String, value: object) -> bytes:
     if not isinstance(value, str):
         raise SchemaError(f"expected a str, got {type(value).__name__}")
     try:
-        return value.encode(schema.encoding)
+        raw = value.encode(schema.encoding)
     except UnicodeError:
         raise SchemaError(f"text cannot be encoded as {schema.encoding}") from None
+    if not isinstance(raw, bytes):
+        raise SchemaError("the str value did not encode to bytes")
+    return raw
 
 
 def decode_text(schema: String, raw: bytes) -> str:

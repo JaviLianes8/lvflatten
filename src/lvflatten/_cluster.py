@@ -19,9 +19,11 @@ def pack_cluster(
     if not isinstance(value, Mapping):
         raise SchemaError("expected a mapping of field name to value for a cluster")
     for name, field_schema in schema.fields:
-        if name not in value:
-            raise SchemaError(f"cluster value is missing field {short(name)}")
-        pack_node(field_schema, value[name], bo, out)
+        try:
+            item = value[name]
+        except KeyError:
+            raise SchemaError(f"cluster value is missing field {short(name)}") from None
+        pack_node(field_schema, item, bo, out)
 
 
 def unpack_cluster(

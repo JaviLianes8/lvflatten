@@ -79,8 +79,14 @@ Stable in 1.0: `pack` and `unpack` with `byte_order` and `prepend_size`; the sch
 - Quoted field names in the schema text form (`cluster("Error Code":i32)`), so any name
   round-trips through `format_schema` and `parse_schema`; nesting beyond 64 levels is refused.
 - Decoding untrusted data is bounded: size headers that promise more data than exists fail at
-  once, and shapes that would build many objects from few bytes are limited to one object
-  per input byte (`DataError` beyond that).
+  once, and objects that cost no input bytes (rows of an empty array, dicts of empty
+  clusters at any depth) share a budget of 65536 plus one per input byte (`DataError` beyond
+  that).
+- Schemas copy and pickle (0.3.0 `Cluster` could not be deep-copied or pickled).
+- Values that misbehave (a list subclass that lies about its length, a `str` whose `encode`
+  returns text, a `float` subclass with a broken `__float__`, a mapping whose `in` lies) raise
+  `SchemaError` or pack correctly instead of corrupting output or leaking `TypeError` or
+  `KeyError`; `Cluster(5)` raises `SchemaError`; a released `memoryview` raises `TypeError`.
 - `DataError` and `TrailingDataError` in the public API.
 - A guide (`GUIDE.md`) covering every public name; doctests on every public name.
 - Every worked example from NI's "Flattened Data" page, copied as fetched, as test vectors.

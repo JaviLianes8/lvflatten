@@ -13,7 +13,7 @@ from ._numeric import pack_bool, pack_float, pack_int, unpack_bool, unpack_float
 from ._reader import Reader
 from ._schema import BoolType, BytesType, ExtType, FloatType, IntType, Schema, TimestampType
 from ._sizes import fixed_size
-from ._string import as_bytes, decode_text, pack_bytes, pack_string, unpack_bytes, unpack_string
+from ._string import decode_text, pack_bytes, pack_string, unpack_bytes, unpack_string
 from ._timestamp import pack_timestamp, unpack_timestamp
 
 _BYTE_ORDER = {"big": ">", "little": "<"}
@@ -31,10 +31,21 @@ def _check_flag(prepend_size: object) -> bool:
     return prepend_size
 
 
-def _as_data(data: object) -> bytes:
-    if not isinstance(data, (bytes, bytearray, memoryview)):
+def _as_view(data: object) -> bytes | memoryview:
+    """Return ``data`` as bytes, or as a flat byte view of it, without copying the buffer."""
+    if isinstance(data, bytes):
+        return data
+    if not isinstance(data, (bytearray, memoryview)):
         raise TypeError(f"data must be bytes-like, got {type(data).__name__}")
-    return as_bytes(data)
+    try:
+        view = memoryview(data)
+        return view.cast("B") if view.c_contiguous else memoryview(view.tobytes())
+    except ValueError:
+        raise TypeError("data is a released or unusable memoryview") from None
+
+
+def _as_data(data: object) -> bytes:
+    return bytes(_as_view(data))
 
 
 def _check_schema(schema: object) -> Schema:

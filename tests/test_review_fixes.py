@@ -82,15 +82,35 @@ def test_the_package_namespace_exposes_only_public_names() -> None:
     assert public == set(lvflatten.__all__)
 
 
-def test_free_object_budget_is_exactly_one_per_input_byte() -> None:
-    # Four header bytes allow exactly four empty clusters, and not five.
-    assert unpack(Array(Cluster([])), b"\x00\x00\x00\x04") == [{}] * 4
+def _count(n: int) -> bytes:
+    return n.to_bytes(4, "big")
+
+
+def test_free_object_budget_is_a_floor_plus_one_per_input_byte() -> None:
+    # 65536 free objects plus one per input byte: four header bytes allow 65540 empty clusters.
+    assert len(unpack(Array(Cluster([])), _count(65540))) == 65540  # type: ignore[arg-type]
     with pytest.raises(DataError):
-        unpack(Array(Cluster([])), b"\x00\x00\x00\x05")
-    # Eight header bytes allow eight empty rows.
-    assert unpack(Array(I8, 2), b"\x00\x00\x00\x08\x00\x00\x00\x00") == [[]] * 8
+        unpack(Array(Cluster([])), _count(65541))
+    # Eight header bytes allow 65544 empty rows.
+    assert len(unpack(Array(I8, 2), _count(65544) + _count(0))) == 65544  # type: ignore[arg-type]
     with pytest.raises(DataError):
-        unpack(Array(I8, 2), b"\x00\x00\x00\x09\x00\x00\x00\x00")
+        unpack(Array(I8, 2), _count(65545) + _count(0))
+
+
+def test_nested_empty_clusters_are_charged_per_dict() -> None:
+    two_dicts = Cluster([("x", Cluster([]))])
+    assert len(unpack(Array(two_dicts), _count(32770))) == 32770  # type: ignore[arg-type]
+    with pytest.raises(DataError):
+        unpack(Array(two_dicts), _count(32771))
+
+
+def test_what_pack_writes_unpack_reads_for_small_empty_shapes() -> None:
+    for schema, value in [
+        (Array(Cluster([])), [{}] * 5),
+        (Array(Cluster([]), 2), [[{}] * 3] * 3),
+        (Array(I8, 3), [[[]] * 4] * 4),
+    ]:
+        assert unpack(schema, pack(schema, value)) == value
 
 
 def test_error_wording() -> None:
@@ -130,5 +150,5 @@ def test_unpack_from_errors_match_unpack() -> None:
     with pytest.raises(TypeError):
         unpack_from(I32, "0000")  # type: ignore[arg-type]
     with pytest.raises(DataError):
-        unpack_from(Array(Cluster([])), b"\xff\xff\x00\x00\x00\x05", 2)
+        unpack_from(Array(Cluster([])), b"\xff\xff" + _count(65541), 2)
     assert unpack_from(Cluster([]), b"\x00" * 4, 4) == ({}, 4)  # offset may equal the length

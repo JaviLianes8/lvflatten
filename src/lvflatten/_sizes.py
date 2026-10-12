@@ -25,3 +25,10 @@ def fixed_size(schema: Schema) -> int | None:
             total += size
         return total
     return None
+
+
+def containers(schema: Schema) -> int:
+    """How many dicts a zero-size schema builds per value (clusters nested in clusters)."""
+    if isinstance(schema, Cluster):
+        return 1 + sum(containers(sub) for _, sub in schema.fields)
+    return 0

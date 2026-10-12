@@ -4,21 +4,24 @@ from __future__ import annotations
 
 from ._errors import DataError, TruncatedDataError
 
+FREE_FLOOR = 1 << 16
+
 
 class Reader:
     """Hands out fixed-size slices of a buffer and raises when it runs short.
 
     Some values cost no input bytes (the rows of an array with a zero dimension, or the
-    elements of an array of empty clusters). ``spend_free`` charges those against a budget of
-    one object per input byte, so a few hostile bytes cannot ask for billions of objects.
+    containers inside an array of empty clusters). ``spend_free`` charges those against a
+    budget of ``FREE_FLOOR`` objects plus one per input byte, so a few hostile bytes cannot ask
+    for billions of objects while small legitimate shapes still decode.
     """
 
     __slots__ = ("_data", "_free", "_pos")
 
-    def __init__(self, data: bytes, start: int = 0) -> None:
+    def __init__(self, data: bytes | memoryview, start: int = 0) -> None:
         self._data = data
         self._pos = start
-        self._free = len(data) - start
+        self._free = FREE_FLOOR + len(data) - start
 
     def take(self, count: int) -> bytes:
         """Return the next ``count`` bytes, or raise if the buffer is too short."""
@@ -28,7 +31,7 @@ class Reader:
                 f"need {count} bytes at offset {self._pos}, "
                 f"only {len(self._data) - self._pos} available"
             )
-        chunk = self._data[self._pos : end]
+        chunk = bytes(self._data[self._pos : end])  # no copy for bytes, one slice for a view
         self._pos = end
         return chunk
 

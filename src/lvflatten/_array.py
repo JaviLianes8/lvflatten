@@ -9,7 +9,7 @@ from ._compound import Array
 from ._errors import DataError, SchemaError, TruncatedDataError
 from ._reader import Reader
 from ._schema import Schema
-from ._sizes import fixed_size
+from ._sizes import containers, fixed_size
 
 PackNode = Callable[[Schema, object, str, bytearray], None]
 UnpackNode = Callable[[Schema, Reader, str], object]
@@ -17,26 +17,33 @@ UnpackNode = Callable[[Schema, Reader, str], object]
 _I32_MAX = 0x7FFFFFFF
 
 
+def _items(value: object) -> list[object]:
+    """Copy one level of the value into a plain list, so lengths cannot lie."""
+    if not isinstance(value, (list, tuple)):
+        raise SchemaError("expected a list nested as deep as the array's dimensions")
+    return list(value)
+
+
 def _shape(value: object, ndims: int) -> list[int]:
     dims: list[int] = []
     level: object = value
     for _ in range(ndims):
-        if not isinstance(level, (list, tuple)):
-            raise SchemaError("expected a list nested as deep as the array's dimensions")
-        if len(level) > _I32_MAX:
+        items = _items(level)
+        if len(items) > _I32_MAX:
             raise SchemaError("an array dimension longer than 2**31 - 1 cannot be flattened")
-        dims.append(len(level))
-        level = level[0] if level else []
+        dims.append(len(items))
+        level = items[0] if items else []
     return dims
 
 
 def _flatten(value: object, dims: list[int], flat: list[object]) -> None:
-    if not isinstance(value, (list, tuple)) or len(value) != dims[0]:
+    items = _items(value)
+    if len(items) != dims[0]:
         raise SchemaError("array rows must all have the same length (the array is ragged)")
     if len(dims) == 1:
-        flat.extend(value)
+        flat.extend(items)
         return
-    for row in value:
+    for row in items:
         _flatten(row, dims[1:], flat)
 
 
@@ -82,8 +89,10 @@ def unpack_array(schema: Array, reader: Reader, bo: str, unpack_node: UnpackNode
     for size in dims:
         total *= size
     element_size = fixed_size(schema.element)
-    if element_size == 0 or total == 0:
-        reader.spend_free(total if total else _empty_rows(dims))
+    if total == 0:
+        reader.spend_free(_empty_rows(dims))
+    elif element_size == 0:
+        reader.spend_free(total * containers(schema.element) + _empty_rows(dims))
     elif element_size is not None and total * element_size > reader.remaining:
         raise TruncatedDataError(
             f"array declares {total} elements of {element_size} bytes, "

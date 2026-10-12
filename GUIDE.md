@@ -63,7 +63,8 @@ assert unpack(Boolean, b"\x02") is True
 
 `EXT` is flattened as 16 bytes in the IEEE 754 binary128 layout (sign, 15-bit exponent
 biased by 16383, 112-bit fraction with an implicit leading one), as real LabVIEW 2026 output
-shows: 1.0 is `3fff` followed by fourteen zero bytes. Every Python `float` encodes exactly,
+shows: 1.0 is `3fff` followed by fourteen zero bytes. An `int` is first converted to the
+nearest `float`. Every Python `float` encodes exactly,
 keeping signed zero, infinities and the NaN sign; decoding rounds to the nearest double, so
 magnitudes beyond the double range become infinity and very small ones become zero.
 
@@ -205,10 +206,18 @@ except SchemaError as exc:
     assert "out of range" in str(exc)
 ```
 
-Decoding is safe on untrusted input: work is linear in the input size, size headers that
-claim more data than exists fail at once, and shapes that would create many objects from few
-bytes (rows of an empty array, arrays of empty clusters) are limited to one object per input
-byte, beyond which `DataError` is raised.
+Decoding is safe on untrusted input. Work is linear in the input size, and size headers that
+claim more data than exists fail at once. Objects that cost no input bytes (the rows of an
+array with a zero dimension, and the dicts of an array of empty clusters, counted through
+every nesting level) share a budget of 65536 plus one per input byte; beyond it `DataError`
+is raised. Everything else the decoder builds consumes input, so memory grows linearly with
+the data, by a factor fixed by the schema rather than by the bytes. `unpack_from` reads
+`bytearray` and `memoryview` input in place, so walking a long buffer stays linear.
+
+Schemas are ordinary immutable values: they compare by value, hash, copy and pickle (so they
+can be sent to worker processes). A schema nested thousands of levels deep is refused by the
+text form and by `pack`, `unpack` and `format_schema` with `SchemaError`, but Python's own
+`repr` and `hash` of such an object may hit the interpreter's recursion limit.
 
 ## 5. The schema text form
 

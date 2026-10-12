@@ -68,8 +68,8 @@ def pack_ext(value: object, bo: str, out: bytearray) -> None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise SchemaError(f"expected a real number for an EXT, got {type(value).__name__}")
     try:
-        number = float(value)
-    except OverflowError:
+        number = float(value)  # an int is converted to the nearest float first
+    except (OverflowError, TypeError, ValueError):
         raise SchemaError("value out of range for an EXT (beyond the double range)") from None
     out += _encode(number).to_bytes(16, "big" if bo == ">" else "little")
 

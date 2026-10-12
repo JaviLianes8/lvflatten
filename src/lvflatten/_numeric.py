@@ -43,7 +43,7 @@ def pack_float(schema: FloatType, value: object, bo: str, out: bytearray) -> Non
         raise SchemaError(f"expected a real number for a float, got {type(value).__name__}")
     try:
         out += struct.pack(bo + ("d" if schema.double else "f"), float(value))
-    except (struct.error, OverflowError):
+    except (struct.error, OverflowError, TypeError, ValueError):
         raise SchemaError("value out of range for a " + repr(schema)) from None
 
 

@@ -88,7 +88,10 @@ class Cluster(Schema):
     fields: tuple[tuple[str, Schema], ...]
 
     def __init__(self, fields: Mapping[str, Schema] | Iterable[tuple[str, Schema]]) -> None:
-        raw = list(fields.items()) if isinstance(fields, Mapping) else list(fields)
+        try:
+            raw = list(fields.items()) if isinstance(fields, Mapping) else list(fields)
+        except TypeError:
+            raise SchemaError("cluster fields must be (name, schema) pairs or a dict") from None
         pairs: list[tuple[str, Schema]] = []
         seen: set[str] = set()
         for pair in raw:
@@ -107,6 +110,9 @@ class Cluster(Schema):
 
     def __setattr__(self, name: str, value: object) -> None:
         raise AttributeError("Cluster is immutable")
+
+    def __reduce__(self) -> tuple[type[Cluster], tuple[list[tuple[str, Schema]]]]:
+        return (Cluster, (list(self.fields),))
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Cluster) and other.fields == self.fields

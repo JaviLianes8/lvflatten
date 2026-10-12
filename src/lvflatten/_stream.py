@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from ._codec import _as_data, _check_schema, _prefix, _unpack_node
+from ._codec import _as_view, _check_schema, _prefix, _unpack_node
 from ._errors import SchemaError, short
 from ._reader import Reader
 from ._schema import Schema
@@ -33,7 +33,7 @@ def unpack_from(
     """
     node = _check_schema(schema)
     bo = _prefix(byte_order)
-    raw = _as_data(data)
+    raw = _as_view(data)  # no per-call copy, so walking a long buffer stays linear
     if isinstance(offset, bool) or not isinstance(offset, int) or not 0 <= offset <= len(raw):
         raise SchemaError(f"offset must be an int from 0 to {len(raw)}, got {short(offset)}")
     reader = Reader(raw, offset)
