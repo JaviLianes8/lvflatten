@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 
-from ._errors import SchemaError
+from ._compound import Cluster
+from ._errors import SchemaError, short
 from ._reader import Reader
-from ._schema import Cluster, Schema
+from ._schema import Schema
 
 PackNode = Callable[[Schema, object, str, bytearray], None]
 UnpackNode = Callable[[Schema, Reader, str], object]
@@ -19,14 +20,11 @@ def pack_cluster(
         raise SchemaError("expected a mapping of field name to value for a cluster")
     for name, field_schema in schema.fields:
         if name not in value:
-            raise SchemaError(f"cluster value is missing field {name!r}")
+            raise SchemaError(f"cluster value is missing field {short(name)}")
         pack_node(field_schema, value[name], bo, out)
 
 
 def unpack_cluster(
     schema: Cluster, reader: Reader, bo: str, unpack_node: UnpackNode
 ) -> dict[str, object]:
-    result: dict[str, object] = {}
-    for name, field_schema in schema.fields:
-        result[name] = unpack_node(field_schema, reader, bo)
-    return result
+    return {name: unpack_node(sub, reader, bo) for name, sub in schema.fields}

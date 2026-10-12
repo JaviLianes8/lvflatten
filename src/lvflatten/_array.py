@@ -5,12 +5,16 @@ from __future__ import annotations
 import struct
 from collections.abc import Callable
 
-from ._errors import SchemaError
+from ._compound import Array
+from ._errors import DataError, SchemaError, TruncatedDataError
 from ._reader import Reader
-from ._schema import Array, Schema
+from ._schema import Schema
+from ._sizes import fixed_size
 
 PackNode = Callable[[Schema, object, str, bytearray], None]
 UnpackNode = Callable[[Schema, Reader, str], object]
+
+_I32_MAX = 0x7FFFFFFF
 
 
 def _shape(value: object, ndims: int) -> list[int]:
@@ -18,21 +22,22 @@ def _shape(value: object, ndims: int) -> list[int]:
     level: object = value
     for _ in range(ndims):
         if not isinstance(level, (list, tuple)):
-            raise SchemaError("array value has fewer dimensions than the schema")
+            raise SchemaError("expected a list nested as deep as the array's dimensions")
+        if len(level) > _I32_MAX:
+            raise SchemaError("an array dimension longer than 2**31 - 1 cannot be flattened")
         dims.append(len(level))
         level = level[0] if level else []
     return dims
 
 
-def _flatten(value: object, ndims: int) -> list[object]:
-    if not isinstance(value, (list, tuple)):
-        raise SchemaError("expected a (possibly nested) list for an array")
-    if ndims == 1:
-        return list(value)
-    flat: list[object] = []
+def _flatten(value: object, dims: list[int], flat: list[object]) -> None:
+    if not isinstance(value, (list, tuple)) or len(value) != dims[0]:
+        raise SchemaError("array rows must all have the same length (the array is ragged)")
+    if len(dims) == 1:
+        flat.extend(value)
+        return
     for row in value:
-        flat.extend(_flatten(row, ndims - 1))
-    return flat
+        _flatten(row, dims[1:], flat)
 
 
 def _nest(flat: list[object], dims: list[int]) -> list[object]:
@@ -45,11 +50,24 @@ def _nest(flat: list[object], dims: list[int]) -> list[object]:
     return [_nest(flat[i * block : (i + 1) * block], inner) for i in range(dims[0])]
 
 
+def _empty_rows(dims: list[int]) -> int:
+    """How many list objects nesting creates when the array holds no elements at all."""
+    rows, product = 0, 1
+    for size in dims[:-1]:
+        product *= size
+        rows += product
+        if not product:
+            break
+    return rows
+
+
 def pack_array(schema: Array, value: object, bo: str, out: bytearray, pack_node: PackNode) -> None:
     dims = _shape(value, schema.ndims)
+    flat: list[object] = []
+    _flatten(value, dims, flat)
     for size in dims:
         out += struct.pack(bo + "i", size)
-    for element in _flatten(value, schema.ndims):
+    for element in flat:
         pack_node(schema.element, element, bo, out)
 
 
@@ -58,10 +76,18 @@ def unpack_array(schema: Array, reader: Reader, bo: str, unpack_node: UnpackNode
     for _ in range(schema.ndims):
         (size,) = struct.unpack(bo + "i", reader.take(4))
         if size < 0:
-            raise SchemaError(f"array dimension is negative: {size}")
+            raise DataError(f"array dimension is negative: {size}")
         dims.append(size)
     total = 1
     for size in dims:
         total *= size
+    element_size = fixed_size(schema.element)
+    if element_size == 0 or total == 0:
+        reader.spend_free(total if total else _empty_rows(dims))
+    elif element_size is not None and total * element_size > reader.remaining:
+        raise TruncatedDataError(
+            f"array declares {total} elements of {element_size} bytes, "
+            f"only {reader.remaining} bytes available"
+        )
     flat = [unpack_node(schema.element, reader, bo) for _ in range(total)]
     return _nest(flat, dims)

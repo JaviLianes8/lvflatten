@@ -4,8 +4,8 @@ LabVIEW flattens an extended number as the 80-bit format (one sign bit, a 15-bit
 biased by 16383, and a 64-bit significand whose top bit is the explicit integer bit) held
 big-endian in the leading ten bytes of a sixteen-byte field, the last six bytes being zero.
 The maths here is pure Python so no numpy longdouble (platform-dependent) is involved. Any
-value that fits a Python float round-trips exactly; magnitudes beyond the double range are
-documented as lossy.
+value that fits a Python float round-trips exactly. On decode, magnitudes beyond the double
+range become infinity and those below it round towards zero.
 """
 
 from __future__ import annotations
@@ -49,14 +49,21 @@ def _decode(bits: int) -> float:
         return -math.inf if sign else math.inf
     if exponent == 0 and significand == 0:
         return -0.0 if sign else 0.0
-    value = math.ldexp(significand, exponent - _BIAS - 63)
+    try:
+        value = math.ldexp(significand, exponent - _BIAS - 63)
+    except OverflowError:
+        value = math.inf  # beyond the double range: rounds to infinity, as documented
     return -value if sign else value
 
 
 def pack_ext(value: object, bo: str, out: bytearray) -> None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise SchemaError("expected a real number for an extended float")
-    packed = _encode(float(value)) << 48
+    try:
+        number = float(value)
+    except OverflowError:
+        raise SchemaError("value out of range for an EXT (beyond the double range)") from None
+    packed = _encode(number) << 48
     out += packed.to_bytes(16, "big" if bo == ">" else "little")
 
 

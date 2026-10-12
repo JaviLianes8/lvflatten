@@ -1,6 +1,6 @@
 import pytest
 
-from lvflatten import DBL, I32, U16, Array, SchemaError, String, pack, unpack
+from lvflatten import DBL, I32, U16, Array, DataError, SchemaError, String, pack, unpack
 
 
 def test_little_endian_reverses_integer_bytes() -> None:
@@ -47,5 +47,5 @@ def test_prepend_size_false_needs_fixed_size_elements() -> None:
 
 
 def test_prepend_size_false_rejects_partial_element() -> None:
-    with pytest.raises(SchemaError):
+    with pytest.raises(DataError):
         unpack(Array(DBL), b"\x00\x00\x00", prepend_size=False)
