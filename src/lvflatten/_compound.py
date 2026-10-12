@@ -1,0 +1,134 @@
+"""The schema nodes built for the shape at hand: ``String``, ``Array`` and ``Cluster``."""
+
+from __future__ import annotations
+
+import codecs
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
+
+from ._errors import SchemaError, short
+from ._schema import Boolean, Schema
+
+MAX_DIMS = 64
+
+
+@dataclass(frozen=True, repr=False)
+class String(Schema):
+    """A LabVIEW string: an I32 byte count followed by the encoded text.
+
+    ``encoding`` is any Python codec name; it is checked when the node is built and stored
+    under the codec's canonical name, so ``String("UTF8") == String()``. LabVIEW on
+    Windows writes text in the system ANSI code page, so ``String("cp1252")`` is the usual
+    choice for non-ASCII text from a Western Windows machine. Use ``Bytes`` for binary data.
+
+    >>> from lvflatten import String, pack, unpack
+    >>> pack(String(), "ABC").hex()
+    '00000003414243'
+    >>> unpack(String("cp1252"), bytes.fromhex("00000001e9"))
+    'é'
+    """
+
+    encoding: str = "utf-8"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.encoding, str):
+            raise SchemaError("a string encoding must be a codec name")
+        try:
+            info = codecs.lookup(self.encoding)
+            "".encode(self.encoding)  # bytes-to-bytes codecs such as hex or zlib fail here
+            info.decode(b"")  # str.decode skips the codec for empty input; this does not
+        except (LookupError, TypeError, ValueError):
+            raise SchemaError(f"unknown text encoding {short(self.encoding)}") from None
+        object.__setattr__(self, "encoding", info.name)
+
+    def __repr__(self) -> str:
+        return "String()" if self.encoding == "utf-8" else f"String({self.encoding!r})"
+
+
+@dataclass(frozen=True, repr=False)
+class Array(Schema):
+    """A LabVIEW array: one I32 size per dimension, then the elements in row-major order.
+
+    The value is a list (nested ``ndims`` deep) or a tuple; rows must be rectangular, and
+    unpack always returns lists. ``ndims`` runs from 1 to 64. ``BoolArray`` is a ready-made
+    ``Array(Boolean)``.
+
+    >>> from lvflatten import I8, Array, pack
+    >>> pack(Array(I8, 2), [[1, 2, 3], [4, 5, 6]]).hex()
+    '0000000200000003010203040506'
+    >>> from lvflatten import Boolean, BoolArray
+    >>> BoolArray == Array(Boolean), pack(BoolArray, [True, False]).hex()
+    (True, '000000020100')
+    """
+
+    element: Schema
+    ndims: int = 1
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.element, Schema):
+            raise SchemaError(f"an array element must be a schema, got {short(self.element)}")
+        if isinstance(self.ndims, bool) or not isinstance(self.ndims, int) or self.ndims < 1:
+            raise SchemaError("an array needs a whole number of dimensions, at least one")
+        if self.ndims > MAX_DIMS:
+            raise SchemaError(f"an array may have at most {MAX_DIMS} dimensions")
+
+    def __repr__(self) -> str:
+        if self.ndims == 1:
+            return f"Array({self.element!r})"
+        return f"Array({self.element!r}, {self.ndims})"
+
+
+class Cluster(Schema):
+    """A LabVIEW cluster: ordered named fields, flattened one after another with no padding.
+
+    Build it from ``(name, schema)`` pairs or from a dict (which keeps insertion order).
+    Field names must be unique strings. The value is a mapping from field name to value;
+    unpack returns a ``dict`` in field order.
+
+    >>> from lvflatten import I16, I32, Cluster, pack
+    >>> pack(Cluster({"a": I16, "b": I32}), {"a": 4, "b": 12}).hex()
+    '00040000000c'
+    """
+
+    __slots__ = ("fields",)
+
+    fields: tuple[tuple[str, Schema], ...]
+
+    def __init__(self, fields: Mapping[str, Schema] | Iterable[tuple[str, Schema]]) -> None:
+        try:
+            raw = list(fields.items()) if isinstance(fields, Mapping) else list(fields)
+        except TypeError:
+            raise SchemaError("cluster fields must be (name, schema) pairs or a dict") from None
+        pairs: list[tuple[str, Schema]] = []
+        seen: set[str] = set()
+        for pair in raw:
+            if not isinstance(pair, (tuple, list)) or len(pair) != 2:
+                raise SchemaError("cluster fields must be (name, schema) pairs")
+            name, schema = pair
+            if not isinstance(name, str):
+                raise SchemaError(f"a cluster field name must be a str, got {short(name)}")
+            if not isinstance(schema, Schema):
+                raise SchemaError(f"field {short(name)} needs a schema, got {short(schema)}")
+            if name in seen:
+                raise SchemaError(f"duplicate cluster field name {short(name)}")
+            seen.add(name)
+            pairs.append((name, schema))
+        object.__setattr__(self, "fields", tuple(pairs))
+
+    def __setattr__(self, name: str, value: object) -> None:
+        raise AttributeError("Cluster is immutable")
+
+    def __reduce__(self) -> tuple[type[Cluster], tuple[list[tuple[str, Schema]]]]:
+        return (Cluster, (list(self.fields),))
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Cluster) and other.fields == self.fields
+
+    def __hash__(self) -> int:
+        return hash(self.fields)
+
+    def __repr__(self) -> str:
+        return f"Cluster({list(self.fields)!r})"
+
+
+BoolArray = Array(Boolean)

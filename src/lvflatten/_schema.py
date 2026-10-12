@@ -1,110 +1,164 @@
-"""The typed schema: the caller declares the LabVIEW type and these nodes describe it.
+"""The schema base class and the fixed-size scalar nodes.
 
-Flattened data carries no type information, so every pack or unpack needs one of these
-nodes to say how the bytes should be read. Scalars are ready-made singletons (``I32``,
-``DBL``, ``EXT``, ``Boolean``, ``Timestamp``, ...); ``String``, ``Array`` and ``Cluster``
-are built for the shape at hand.
+Flattened data carries no type information, so every pack or unpack needs a schema node to
+say how the bytes should be read. The scalars are ready-made singletons (``I32``, ``DBL``,
+``EXT``, ``Boolean``, ``Timestamp``, ``Bytes``, ...); ``String``, ``Array`` and ``Cluster``
+in ``_compound`` are built for the shape at hand.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import NamedTuple
 
-from ._errors import SchemaError
-
-
-class LVTimestamp(NamedTuple):
-    """A LabVIEW 128-bit timestamp: whole seconds since 1904 and a 2**-64 fraction."""
-
-    seconds: int
-    fraction: int
+from ._errors import SchemaError, short
 
 
-@dataclass(frozen=True)
-class IntType:
-    """A fixed-width LabVIEW integer, signed or unsigned."""
+class Schema:
+    """Base class of every schema node; use it to annotate or test for "any schema".
+
+    >>> from lvflatten import I32, Array, Schema
+    >>> isinstance(I32, Schema), isinstance(Array(I32), Schema)
+    (True, True)
+    """
+
+    __slots__ = ()
+
+    def __new__(cls, *args: object, **kwargs: object) -> Schema:
+        if cls is Schema:
+            raise TypeError("Schema is the base class; build a node such as I32 or Array(...)")
+        return super().__new__(cls)
+
+
+_INT_NAMES = {
+    (8, True): "I8",
+    (16, True): "I16",
+    (32, True): "I32",
+    (64, True): "I64",
+    (8, False): "U8",
+    (16, False): "U16",
+    (32, False): "U32",
+    (64, False): "U64",
+}
+
+
+@dataclass(frozen=True, repr=False)
+class IntType(Schema):
+    """A fixed-width integer: ``I8 I16 I32 I64`` signed, ``U8 U16 U32 U64`` unsigned.
+
+    The value is a Python ``int`` (``bool`` is refused) and must fit the width.
+
+    >>> from lvflatten import I16, U32, pack, unpack
+    >>> pack(I16, -2)
+    b'\\xff\\xfe'
+    >>> unpack(U32, b"\\xde\\xad\\xbe\\xef") == 0xDEADBEEF
+    True
+    >>> from lvflatten import I8, I32, I64, U8, U16, U64
+    >>> [len(pack(t, 0)) for t in (I8, I16, I32, I64, U8, U16, U32, U64)]
+    [1, 2, 4, 8, 1, 2, 4, 8]
+    """
 
     bits: int
     signed: bool
 
+    def __post_init__(self) -> None:
+        if (self.bits, self.signed) not in _INT_NAMES:
+            raise SchemaError(f"unsupported integer width: {short(self.bits)}")
 
-@dataclass(frozen=True)
-class FloatType:
-    """A LabVIEW IEEE 754 float: single (SGL) when ``double`` is false, else double (DBL)."""
+    def __repr__(self) -> str:
+        return _INT_NAMES[(self.bits, self.signed)]
+
+
+@dataclass(frozen=True, repr=False)
+class FloatType(Schema):
+    """An IEEE 754 float: ``SGL`` (4 bytes) or ``DBL`` (8 bytes); the value is a ``float``.
+
+    >>> from lvflatten import DBL, SGL, pack
+    >>> pack(DBL, 0.25).hex()
+    '3fd0000000000000'
+    >>> pack(SGL, 1.0).hex()
+    '3f800000'
+    """
 
     double: bool
 
-
-@dataclass(frozen=True)
-class ExtType:
-    """A LabVIEW extended-precision float (80-bit, stored big-endian in 16 bytes)."""
+    def __repr__(self) -> str:
+        return "DBL" if self.double else "SGL"
 
 
-@dataclass(frozen=True)
-class BoolType:
-    """A LabVIEW boolean, flattened as a single byte (0 or 1)."""
+class _Singleton(Schema):
+    """A node with no parameters: all instances are equal and it reprs as its public name."""
 
-
-@dataclass(frozen=True)
-class BoolArrayType:
-    """A LabVIEW boolean array: an I32 count then one byte per element (0 or 1)."""
-
-
-@dataclass(frozen=True)
-class TimestampType:
-    """A LabVIEW 128-bit timestamp value."""
-
-
-@dataclass(frozen=True)
-class String:
-    """A LabVIEW string: an I32 byte count followed by the encoded bytes."""
-
-    encoding: str = "utf-8"
-
-
-@dataclass(frozen=True)
-class Array:
-    """A LabVIEW array: one I32 size per dimension, then the elements in row-major order."""
-
-    element: Schema
-    ndims: int = 1
-
-    def __post_init__(self) -> None:
-        if self.ndims < 1:
-            raise SchemaError("an array needs at least one dimension")
-
-
-class Cluster:
-    """A LabVIEW cluster: ordered named fields, flattened one after another with no padding."""
-
-    __slots__ = ("fields",)
-
-    def __init__(self, fields: Sequence[tuple[str, Schema]]) -> None:
-        self.fields: tuple[tuple[str, Schema], ...] = tuple(fields)
+    __slots__ = ()
+    _name = ""
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, Cluster) and other.fields == self.fields
+        return type(other) is type(self)
 
     def __hash__(self) -> int:
-        return hash(self.fields)
+        return hash(type(self).__name__)
 
     def __repr__(self) -> str:
-        return f"Cluster({list(self.fields)!r})"
+        return self._name
 
 
-Schema = (
-    IntType
-    | FloatType
-    | ExtType
-    | BoolType
-    | BoolArrayType
-    | TimestampType
-    | String
-    | Array
-    | Cluster
-)
+class ExtType(_Singleton):
+    """``EXT``: an extended float, flattened as 16 bytes in the IEEE 754 binary128 layout.
+
+    Every Python ``float`` encodes exactly; decoding rounds to the nearest double.
+
+    >>> from lvflatten import EXT, pack, unpack
+    >>> pack(EXT, 1.0).hex()
+    '3fff0000000000000000000000000000'
+    >>> unpack(EXT, pack(EXT, -2.5))
+    -2.5
+    """
+
+    __slots__ = ()
+    _name = "EXT"
+
+
+class BoolType(_Singleton):
+    """``Boolean``: one byte, ``01`` for TRUE and ``00`` for FALSE; any nonzero byte reads TRUE.
+
+    >>> from lvflatten import Boolean, pack, unpack
+    >>> pack(Boolean, True), unpack(Boolean, b"\\x07")
+    (b'\\x01', True)
+    """
+
+    __slots__ = ()
+    _name = "Boolean"
+
+
+class TimestampType(_Singleton):
+    """``Timestamp``: the 128-bit time stamp, I64 seconds then U64 fraction since 1904.
+
+    The value is an :class:`LVTimestamp`.
+
+    >>> from lvflatten import LVTimestamp, Timestamp, pack
+    >>> pack(Timestamp, LVTimestamp(1, 1 << 63)).hex()
+    '00000000000000018000000000000000'
+    """
+
+    __slots__ = ()
+    _name = "Timestamp"
+
+
+class BytesType(_Singleton):
+    """``Bytes``: a LabVIEW string holding binary data, read and written as ``bytes``.
+
+    The wire form is the same as :class:`String` (an I32 byte count then the bytes) and also
+    the same as an ``Array(U8)``, but no text decoding is attempted.
+
+    >>> from lvflatten import Bytes, pack, unpack
+    >>> pack(Bytes, b"\\xff\\x00").hex()
+    '00000002ff00'
+    >>> unpack(Bytes, bytes.fromhex("00000001ff"))
+    b'\\xff'
+    """
+
+    __slots__ = ()
+    _name = "Bytes"
+
 
 I8 = IntType(8, True)
 I16 = IntType(16, True)
@@ -118,5 +172,5 @@ SGL = FloatType(False)
 DBL = FloatType(True)
 EXT = ExtType()
 Boolean = BoolType()
-BoolArray = BoolArrayType()
 Timestamp = TimestampType()
+Bytes = BytesType()

@@ -1,4 +1,6 @@
 import importlib.resources
+import re
+from pathlib import Path
 
 import lvflatten
 
@@ -19,18 +21,22 @@ PUBLIC_API: list[str] = [
     "Array",
     "BoolArray",
     "Boolean",
+    "Bytes",
     "Cluster",
+    "DataError",
     "LVFlattenError",
     "LVTimestamp",
     "Schema",
     "SchemaError",
     "String",
     "Timestamp",
+    "TrailingDataError",
     "TruncatedDataError",
     "format_schema",
     "pack",
     "parse_schema",
     "unpack",
+    "unpack_from",
 ]
 
 
@@ -51,3 +57,17 @@ def test_version_is_a_three_part_string() -> None:
 
 def test_the_package_ships_type_information() -> None:
     assert importlib.resources.files("lvflatten").joinpath("py.typed").is_file()
+
+
+def test_version_matches_pyproject() -> None:
+    root = Path(__file__).resolve().parent.parent
+    text = (root / "pyproject.toml").read_text(encoding="utf-8")
+    match = re.search(r'^version = "([^"]+)"$', text, re.MULTILINE)
+    assert match is not None
+    assert match.group(1) == lvflatten.__version__
+
+
+def test_package_has_no_runtime_dependencies() -> None:
+    root = Path(__file__).resolve().parent.parent
+    text = (root / "pyproject.toml").read_text(encoding="utf-8")
+    assert re.search(r"^dependencies = \[\]$", text, re.MULTILINE)

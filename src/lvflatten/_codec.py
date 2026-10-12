@@ -2,36 +2,51 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from ._array import pack_array, unpack_array
-from ._bool import pack_bool, pack_bool_array, unpack_bool, unpack_bool_array
+from ._buffer import Buffer, as_view, release
 from ._cluster import pack_cluster, unpack_cluster
-from ._errors import LVFlattenError, SchemaError
+from ._compound import Array, Cluster, String
+from ._errors import DataError, SchemaError, TrailingDataError, short
 from ._ext import pack_ext, unpack_ext
-from ._numeric import pack_float, pack_int, unpack_float, unpack_int
+from ._numeric import pack_bool, pack_float, pack_int, unpack_bool, unpack_float, unpack_int
 from ._reader import Reader
-from ._schema import (
-    Array,
-    BoolArrayType,
-    BoolType,
-    Cluster,
-    ExtType,
-    FloatType,
-    IntType,
-    Schema,
-    String,
-    TimestampType,
-)
-from ._string import pack_string, unpack_string
+from ._schema import BoolType, BytesType, ExtType, FloatType, IntType, Schema, TimestampType
+from ._sizes import fixed_size
+from ._string import decode_text, pack_bytes, pack_string, unpack_bytes, unpack_string
 from ._timestamp import pack_timestamp, unpack_timestamp
 
 _BYTE_ORDER = {"big": ">", "little": "<"}
 
 
-def _prefix(byte_order: str) -> str:
-    try:
+def _prefix(byte_order: object) -> str:
+    if isinstance(byte_order, str) and byte_order in _BYTE_ORDER:
         return _BYTE_ORDER[byte_order]
-    except KeyError:
-        raise SchemaError(f"byte_order must be 'big' or 'little', got {byte_order!r}") from None
+    raise SchemaError(f"byte_order must be 'big' or 'little', got {short(byte_order)}")
+
+
+def _check_flag(prepend_size: object) -> bool:
+    if not isinstance(prepend_size, bool):
+        raise SchemaError(f"prepend_size must be True or False, got {short(prepend_size)}")
+    return prepend_size
+
+
+def _as_data(data: object) -> bytes:
+    raw = as_view(data)
+    try:
+        return bytes(raw)
+    finally:
+        release(raw)
+
+
+def _check_schema(schema: object) -> Schema:
+    if isinstance(schema, type) and issubclass(schema, Schema):
+        name = schema.__name__
+        raise SchemaError(f"{name} is a class; pass a schema node such as {name}(...)")
+    if not isinstance(schema, Schema):
+        raise SchemaError(f"expected a schema node, got {short(schema)}")
+    return schema
 
 
 def _pack_node(schema: Schema, value: object, bo: str, out: bytearray) -> None:
@@ -43,18 +58,18 @@ def _pack_node(schema: Schema, value: object, bo: str, out: bytearray) -> None:
         pack_ext(value, bo, out)
     elif isinstance(schema, BoolType):
         pack_bool(value, out)
-    elif isinstance(schema, BoolArrayType):
-        pack_bool_array(value, bo, out)
     elif isinstance(schema, TimestampType):
         pack_timestamp(value, bo, out)
     elif isinstance(schema, String):
         pack_string(schema, value, bo, out)
+    elif isinstance(schema, BytesType):
+        pack_bytes(value, bo, out)
     elif isinstance(schema, Array):
         pack_array(schema, value, bo, out, _pack_node)
     elif isinstance(schema, Cluster):
         pack_cluster(schema, value, bo, out, _pack_node)
-    else:  # pragma: no cover - the Schema union is exhaustive above
-        raise SchemaError(f"unsupported schema: {schema!r}")
+    else:
+        raise SchemaError(f"unsupported schema: {short(schema)}")
 
 
 def _unpack_node(schema: Schema, reader: Reader, bo: str) -> object:
@@ -66,105 +81,104 @@ def _unpack_node(schema: Schema, reader: Reader, bo: str) -> object:
         return unpack_ext(reader, bo)
     if isinstance(schema, BoolType):
         return unpack_bool(reader)
-    if isinstance(schema, BoolArrayType):
-        return unpack_bool_array(reader, bo)
     if isinstance(schema, TimestampType):
         return unpack_timestamp(reader, bo)
     if isinstance(schema, String):
         return unpack_string(schema, reader, bo)
+    if isinstance(schema, BytesType):
+        return unpack_bytes(reader, bo)
     if isinstance(schema, Array):
         return unpack_array(schema, reader, bo, _unpack_node)
     if isinstance(schema, Cluster):
         return unpack_cluster(schema, reader, bo, _unpack_node)
-    raise SchemaError(f"unsupported schema: {schema!r}")  # pragma: no cover - exhaustive above
+    raise SchemaError(f"unsupported schema: {short(schema)}")
 
 
-def _fixed_size(schema: Schema) -> int | None:
-    """Byte size of a fixed-size schema, or None if it carries a length of its own."""
-    if isinstance(schema, IntType):
-        return schema.bits // 8
-    if isinstance(schema, FloatType):
-        return 8 if schema.double else 4
-    if isinstance(schema, ExtType):
-        return 16
-    if isinstance(schema, BoolType):
-        return 1
-    if isinstance(schema, TimestampType):
-        return 16
-    if isinstance(schema, Cluster):
-        total = 0
-        for _, field_schema in schema.fields:
-            size = _fixed_size(field_schema)
-            if size is None:
-                return None
-            total += size
-        return total
-    return None
-
-
-def _strip_top_size(schema: Schema, out: bytearray) -> bytearray:
+def _unpack_without_size(schema: String | BytesType | Array, data: bytes, bo: str) -> object:
     if isinstance(schema, String):
-        return out[4:]
-    if isinstance(schema, Array):
-        return out[4 * schema.ndims :]
-    return out
-
-
-def _unpack_without_size(schema: Schema, data: bytes, bo: str) -> object:
-    if isinstance(schema, String):
-        return data.decode(schema.encoding)
-    if isinstance(schema, Array):
-        if schema.ndims != 1:
-            raise SchemaError("prepend_size=False needs a one-dimensional array")
-        size = _fixed_size(schema.element)
-        if size is None or size == 0:
-            raise SchemaError("prepend_size=False needs fixed-size array elements")
-        if len(data) % size:
-            raise SchemaError("data length is not a whole number of elements")
-        reader = Reader(data)
-        return [_unpack_node(schema.element, reader, bo) for _ in range(len(data) // size)]
-    raise SchemaError("prepend_size=False only applies to a top-level string or array")
+        return decode_text(schema, data)
+    if isinstance(schema, BytesType):
+        return data
+    if schema.ndims != 1:
+        raise SchemaError("prepend_size=False needs a one-dimensional array to unpack")
+    size = fixed_size(schema.element)
+    if not size:
+        raise SchemaError("prepend_size=False needs fixed-size, non-empty array elements")
+    if len(data) % size:
+        raise DataError(f"{len(data)} bytes is not a whole number of {size}-byte elements")
+    reader = Reader(data)
+    return [_unpack_node(schema.element, reader, bo) for _ in range(len(data) // size)]
 
 
 def pack(
     schema: Schema,
     value: object,
     *,
-    byte_order: str = "big",
+    byte_order: Literal["big", "little"] = "big",
     prepend_size: bool = True,
 ) -> bytes:
     """Flatten ``value`` to bytes as the LabVIEW type described by ``schema``.
 
     ``byte_order`` is "big" (the LabVIEW default) or "little". When ``prepend_size`` is false
-    the leading I32 length of a top-level string, or the leading dimension sizes of a top-level
-    array, are omitted, mirroring LabVIEW's "prepend array or string size?" terminal.
+    the leading I32 length of a top-level string or ``Bytes``, or the leading dimension sizes
+    of a top-level array, are left out, mirroring LabVIEW's "prepend array or string size?"
+    terminal. Nested strings and arrays always keep their own size.
+
+    Raises :class:`SchemaError` when the value does not match the schema.
+
+    >>> from lvflatten import I32, String, pack
+    >>> pack(I32, -19).hex()
+    'ffffffed'
+    >>> pack(String(), "ABC", prepend_size=False)
+    b'ABC'
     """
+    node = _check_schema(schema)
     bo = _prefix(byte_order)
+    _check_flag(prepend_size)
     out = bytearray()
-    _pack_node(schema, value, bo, out)
+    try:
+        _pack_node(node, value, bo, out)
+    except RecursionError:
+        raise SchemaError("the schema or value nests too deeply") from None
     if not prepend_size:
-        out = _strip_top_size(schema, out)
+        if isinstance(node, (String, BytesType)):
+            del out[:4]
+        elif isinstance(node, Array):
+            del out[: 4 * node.ndims]
     return bytes(out)
 
 
 def unpack(
     schema: Schema,
-    data: bytes,
+    data: Buffer,
     *,
-    byte_order: str = "big",
+    byte_order: Literal["big", "little"] = "big",
     prepend_size: bool = True,
 ) -> object:
     """Rebuild the value from flattened ``data`` using ``schema``.
 
-    The whole buffer must be consumed: trailing bytes raise, which catches a wrong schema or
-    size. With ``prepend_size`` false a top-level string takes the whole buffer and a top-level
-    one-dimensional array of fixed-size elements is read to the end.
+    The whole buffer must be consumed: leftover bytes raise :class:`TrailingDataError`, which
+    catches a wrong schema or size. Short data raises :class:`TruncatedDataError` and other
+    malformed data :class:`DataError`. With ``prepend_size`` false a top-level string takes
+    the whole buffer and a top-level one-dimensional array of fixed-size elements is read to
+    the end. ``data`` may be any object supporting the buffer protocol; anything else raises
+    ``TypeError``.
+
+    >>> from lvflatten import I32, Array, unpack
+    >>> unpack(Array(I32), bytes.fromhex("000000020000000100000002"))
+    [1, 2]
     """
+    node = _check_schema(schema)
     bo = _prefix(byte_order)
-    if not prepend_size and isinstance(schema, (String, Array)):
-        return _unpack_without_size(schema, data, bo)
-    reader = Reader(data)
-    value = _unpack_node(schema, reader, bo)
+    _check_flag(prepend_size)
+    raw = _as_data(data)
+    try:
+        if not prepend_size and isinstance(node, (String, BytesType, Array)):
+            return _unpack_without_size(node, raw, bo)
+        reader = Reader(raw)
+        value = _unpack_node(node, reader, bo)
+    except RecursionError:
+        raise SchemaError("the schema nests too deeply") from None
     if not reader.done():
-        raise LVFlattenError(f"{reader.remaining} trailing bytes left after the value")
+        raise TrailingDataError(reader.remaining)
     return value

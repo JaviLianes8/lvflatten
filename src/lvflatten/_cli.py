@@ -7,11 +7,12 @@ import binascii
 import json
 import sys
 from collections.abc import Sequence
+from typing import Literal
 
 from . import __version__
 from ._codec import pack, unpack
 from ._errors import LVFlattenError
-from ._json import from_jsonable
+from ._json import from_jsonable, to_jsonable
 from ._parse import parse_schema
 
 _EXAMPLES = """\
@@ -28,9 +29,12 @@ examples:
   # little-endian, and drop the top-level size prefix
   lvflatten unflatten -s "array(i16)" -x 01000200 --little --no-size
 
-Schema text: scalars i8..i64 u8..u64 sgl dbl ext bool boolarray timestamp,
-plus string[(encoding)], array(<schema>[, ndims]) and cluster(name:<schema>, ...).
+Schema text: scalars i8..i64 u8..u64 sgl dbl ext bool boolarray timestamp bytes,
+plus string[(encoding)], array(<schema>[, ndims]) and cluster(name:<schema>, ...);
+quote a field name that has spaces: cluster("Error Code":i32).
 Hex may contain spaces or newlines; with -x/-j omitted the input is read from stdin.
+In JSON a timestamp is [seconds, fraction] and bytes are a hex string.
+Exit status: 0 on success, 1 for bad input data or schema, 2 for bad arguments.
 """
 
 
@@ -67,7 +71,7 @@ def _run_unflatten(args: argparse.Namespace) -> int:
     raw = args.hex if args.hex is not None else sys.stdin.read()
     data = binascii.unhexlify("".join(raw.split()))
     value = unpack(schema, data, byte_order=_order(args), prepend_size=not args.no_size)
-    print(json.dumps(value, indent=args.indent if args.indent > 0 else None))
+    print(json.dumps(to_jsonable(value), indent=args.indent if args.indent > 0 else None))
     return 0
 
 
@@ -80,7 +84,7 @@ def _run_flatten(args: argparse.Namespace) -> int:
     return 0
 
 
-def _order(args: argparse.Namespace) -> str:
+def _order(args: argparse.Namespace) -> Literal["big", "little"]:
     return "little" if args.little else "big"
 
 
@@ -91,7 +95,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "unflatten":
             return _run_unflatten(args)
         return _run_flatten(args)
-    except (LVFlattenError, ValueError) as exc:
+    except (LVFlattenError, ValueError, LookupError, RecursionError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 

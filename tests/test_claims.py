@@ -1,8 +1,9 @@
 """The complete promise, proven against golden LabVIEW-flattened bytes.
 
 Every hex string below is hand-derived from LabVIEW's documented Flatten To String format
-(big-endian, I32 size prefixes), not produced by this library. Each case is asserted in both
-directions, so the codec is pinned to the real wire format, not just to itself.
+(big-endian, I32 size prefixes), not produced by this library, except ``ext_one``: NI only
+says "128-bit", and that layout comes from the real LabVIEW capture ``flatten_ext_1p0.bin``.
+Each case is asserted in both directions, so the codec is pinned to the real wire format.
 """
 
 import pytest
@@ -42,7 +43,7 @@ GOLDEN = [
     ("i64", I64, 1, "0000000000000001"),
     ("sgl_one", SGL, 1.0, "3f800000"),
     ("dbl_one", DBL, 1.0, "3ff0000000000000"),
-    ("ext_one", EXT, 1.0, "3fff8000000000000000000000000000"),
+    ("ext_one", EXT, 1.0, "3fff0000000000000000000000000000"),
     ("bool_true", Boolean, True, "01"),
     ("bool_false", Boolean, False, "00"),
     ("boolarray", BoolArray, [True, False, True], "00000003010001"),

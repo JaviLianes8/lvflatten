@@ -1,6 +1,19 @@
 # lvflatten
 
-Schema-driven codec for LabVIEW's "Flatten To String" binary format.
+Read and write LabVIEW "Flatten To String" data from Python, with no LabVIEW installed.
+
+## The problem
+
+LabVIEW's Flatten To String turns any wire (a number, a string, an array, a cluster) into a
+compact binary string, and that string is the usual shape of data that leaves LabVIEW over
+TCP, UDP, a serial line or a file. The bytes carry no type information: NI's reference says
+so in as many words, and LabVIEW's own Unflatten From String needs the type wired in. A
+Python program on the other end therefore has to know the type up front and decode the
+layout by hand, one `struct.unpack` at a time.
+
+`lvflatten` does that decoding and encoding for you. You declare the LabVIEW type once as a
+schema, and the library packs Python values into the exact bytes LabVIEW produces or unpacks
+LabVIEW's bytes into plain Python values.
 
 ## Install
 
@@ -8,161 +21,118 @@ Schema-driven codec for LabVIEW's "Flatten To String" binary format.
 pip install lvflatten
 ```
 
-## Usage
+Pure standard library, no runtime dependencies, Python 3.10 or newer, fully typed.
 
-Flattened LabVIEW data carries no type information, so the caller declares the type with a
-schema and the library packs or unpacks the bytes against it.
-
-```python
-from lvflatten import I32, DBL, Array, Cluster, String, Boolean, pack, unpack
-
-# A scalar.
-data = pack(I32, 42)  # b"\x00\x00\x00\x2a"  (big-endian)
-assert unpack(I32, data) == 42
-
-# A string: an I32 byte count then the bytes.
-assert pack(String(), "NI") == b"\x00\x00\x00\x02NI"
-
-# An array: an I32 size then the elements.
-assert unpack(Array(DBL), pack(Array(DBL), [1.0, 2.0])) == [1.0, 2.0]
-
-# A cluster: ordered named fields, flattened back to back with no padding.
-sensor = Cluster([("id", I32), ("label", String()), ("ok", Boolean)])
-blob = pack(sensor, {"id": 7, "label": "probe", "ok": True})
-assert unpack(sensor, blob) == {"id": 7, "label": "probe", "ok": True}
-```
-
-Options on both `pack` and `unpack`:
-
-- `byte_order="big"` (the LabVIEW default) or `"little"`.
-- `prepend_size=True` (default). Set it to `False` to drop the leading I32 length of a
-  top-level string, or the leading dimension sizes of a top-level array, matching LabVIEW's
-  "prepend array or string size?" terminal. Nested strings and arrays always keep their own
-  size prefix so they stay self-describing.
-
-The 128-bit timestamp is carried by a small named tuple:
+## Quick start
 
 ```python
-from lvflatten import Timestamp, LVTimestamp, pack, unpack
+from lvflatten import DBL, I32, Array, Boolean, Cluster, String, pack, unpack
 
-# Whole seconds since the 1904 epoch, plus a 2**-64 fraction of a second.
-ts = LVTimestamp(seconds=2082844800, fraction=0)  # 1970-01-01T00:00:00Z
-assert unpack(Timestamp, pack(Timestamp, ts)) == ts
+# A cluster, as LabVIEW would send it over TCP.
+reading = Cluster([("id", I32), ("label", String()), ("samples", Array(DBL)), ("ok", Boolean)])
+
+blob = pack(reading, {"id": 7, "label": "probe", "samples": [0.25, 1.0], "ok": True})
+assert blob.hex() == ("000000070000000570726f6265000000023fd00000000000003ff000000000000001")
+assert unpack(reading, blob) == {"id": 7, "label": "probe", "samples": [0.25, 1.0], "ok": True}
 ```
 
-A schema can also be written in a compact text form and parsed back, which keeps long
-definitions readable and feeds the command-line tool:
+The same schema can be written as text, which is handy in configuration files and on the
+command line:
 
 ```python
-from lvflatten import parse_schema, format_schema
+from lvflatten import parse_schema
 
-schema = parse_schema("cluster(id:i32, name:string, grid:array(dbl, 2), ok:bool)")
-assert format_schema(schema) == "cluster(id:i32, name:string, grid:array(dbl, 2), ok:bool)"
+schema = parse_schema('cluster(id:i32, label:string, samples:array(dbl), "Error Code":i32)')
 ```
 
-## Command line
-
-The `lvflatten` command decodes flattened hex to JSON and encodes JSON back to hex, taking
-the schema in the text form above. Run `lvflatten --help` for the full list.
-
 ```
-# Decode a cluster to JSON (big-endian by default).
 $ lvflatten unflatten -s "cluster(id:i32, name:string, ok:bool)" -x 000000070000000570726f626501
 {
   "id": 7,
   "name": "probe",
   "ok": true
 }
-
-# Encode JSON back to hex.
 $ lvflatten flatten -s "array(dbl)" -j "[1.0, 2.0]"
 000000023ff00000000000004000000000000000
-
-# Little-endian, and drop the top-level size prefix.
-$ lvflatten unflatten -s "array(i16)" -x 01000200 --little --no-size
-[1, 2]
 ```
 
-The hex may contain spaces or newlines, and when `-x` or `-j` is omitted the input is read
-from standard input, so flattened data can be piped straight in.
+Every type, option, error and the command-line tool are covered in the
+[guide](https://github.com/JaviLianes8/lvflatten/blob/main/GUIDE.md).
 
 ## Supported types
 
 | Schema | LabVIEW type | Flattened form |
 | --- | --- | --- |
-| `I8 I16 I32 I64 U8 U16 U32 U64` | integers | fixed-width, big-endian |
+| `I8 I16 I32 I64 U8 U16 U32 U64` | integers | fixed width, two's complement |
 | `SGL` / `DBL` | single / double float | IEEE 754, 4 / 8 bytes |
-| `EXT` | extended float | 80-bit value in 16 big-endian bytes |
-| `Boolean` | boolean | one byte, 0 or 1 |
-| `BoolArray` | boolean array | I32 count then one byte per element (0 or 1) |
-| `String(encoding="utf-8")` | string | I32 byte count then the bytes |
-| `Array(element, ndims=1)` | array | one I32 per dimension, then row-major elements |
-| `Cluster([(name, schema), ...])` | cluster | ordered fields, no padding |
-| `Timestamp` | 128-bit timestamp | I64 seconds + U64 fraction, since 1904 |
+| `EXT` | extended float | IEEE 754 binary128, 16 bytes |
+| `Boolean` | Boolean | one byte, `01` TRUE, `00` FALSE |
+| `String(encoding="utf-8")` | string | I32 byte count, then the bytes |
+| `Bytes` | string used as a byte buffer | I32 byte count, then the bytes |
+| `Array(element, ndims=1)` | array, any dimension | one I32 size per dimension, then the elements |
+| `BoolArray` | Boolean array | the same as `Array(Boolean)` |
+| `Cluster([(name, schema), ...])` | cluster | the fields back to back, no padding |
+| `Timestamp` | 128-bit time stamp | I64 seconds and U64 fraction since 1904 |
 
-## Golden fixtures and provenance
+Big-endian is the default, as in LabVIEW; `byte_order="little"` and LabVIEW's "prepend array
+or string size?" switch (`prepend_size=False`) are both supported.
 
-The test suite is pinned to two kinds of reference bytes, kept clearly separated so the
-provenance of every assertion is honest:
+## Why lvflatten
 
-- **Captured from real LabVIEW 2026** - the files under
-  [`tests/fixtures/real_labview/`](tests/fixtures/real_labview) are genuine "Flatten To String"
-  output captured on LabVIEW 2026 (26.3.1f1) by driving shipped VIs through the ActiveX/VI
-  Server COM interface and reading the raw `data string` indicator. They cover the DBL values
-  0.25 and 1.0, NaN, positive and negative infinity, boolean TRUE and FALSE, the string
-  `"ABC"`, and the empty string. `tests/test_real_labview.py` decodes each file, checks the
-  value, and re-flattens it byte-for-byte. The accompanying `manifest.json` records how each
-  byte sequence was produced and cross-checked.
-- **Derived from NI documentation** - composite shapes (an I32, a 1-D and a 2-D DBL array, a
-  128-bit timestamp, and a mixed cluster) could not be captured on this machine because LabVIEW
-  VI Scripting is not reachable over COM, so no VI with a settable control of those types could
-  be built headlessly. Their expected bytes come from the NI "Flattened Data" reference, not
-  from a live capture, and `tests/test_documented_composites.py` labels them as such.
+The format is documented by NI
+([Flattened Data](https://www.ni.com/docs/en-US/bundle/labview/page/flattened-data.html)),
+but the LabVIEW-related packages on PyPI solve other problems, and none of them is a general
+codec for flattened data: [npTDMS](https://pypi.org/project/npTDMS/) and
+[nitdms](https://pypi.org/project/nitdms/) read TDMS files,
+[pylavi](https://pypi.org/project/pylavi/), [pylabview](https://pypi.org/project/pylabview/)
+and [lvkit](https://pypi.org/project/lvkit/) parse VI and other LabVIEW source files, and
+[PyVISA](https://pypi.org/project/PyVISA/) and [nidaqmx](https://pypi.org/project/nidaqmx/)
+talk to instruments and DAQ hardware. Inside LabVIEW, Flatten To String and Unflatten From
+String do this natively, but they are of no use to a Python process. The recurring forum
+question ([an NI forum thread on unflattening a LabVIEW TCP string in Python](https://forums.ni.com/t5/LabVIEW/Python-client-to-unflatten-received-string-from-TCP-Labview/m-p/3353607))
+is answered with hand-written `struct` code; `lvflatten` replaces that with a declared schema
+and an exact, tested round trip.
 
-The boolean-array layout used throughout is one byte per element after the I32 count, matching
-both the NI reference and the cluster vector; it is not bit-packed.
+## Ground truth
 
-## Why
+The test suite is pinned to three kinds of reference bytes, kept apart so the source of every
+expectation is clear:
 
-LabVIEW's "Flatten To String" turns any wire into a compact binary blob, and it is the usual
-shape of data that leaves LabVIEW over TCP, UDP or a file. LabVIEW unflattens it natively, and
-OpenG's Variant Data Library adds variant and type-descriptor tooling on top, but both run
-inside LabVIEW and neither is callable from a Python process with no LabVIEW present. The
-format is documented (NI, "Flattened Data",
-https://www.ni.com/docs/en-US/bundle/labview/page/flattened-data.html) but
-it is schema-driven: the bytes alone do not say what they are, so a reader outside LabVIEW
-has to know the type up front. That makes decoding it from Python a recurring, unsolved ask.
-The most-cited example is the NI forum thread "Python client to unflatten received string
-from TCP" (https://forums.ni.com/t5/LabVIEW/Python-client-to-unflatten-received-string-from-TCP/td-p/4038495),
-where a LabVIEW server flattens a cluster, sends it over a socket, and the Python side has
-nothing to turn the bytes back into values.
+- **Captured from real LabVIEW 2026** (26.3.1f1, on Windows): 33 byte sequences covering
+  every supported type except the `I8`, `I16`, `U16`, `SGL` and `I64` scalars (the 32-bit
+  integer was flattened from a U32 control, whose bytes are those of an I32), taken by
+  driving shipped VIs
+  through LabVIEW's ActiveX interface, either from the output of Flatten To String itself or
+  from LabVIEW's front-panel datalog records (whose encoding was checked against Flatten To
+  String in the same run):
+  [`tests/fixtures/real_labview`](https://github.com/JaviLianes8/lvflatten/tree/main/tests/fixtures/real_labview),
+  with a manifest that records how each file was produced.
+- **Copied from NI's Flattened Data page**, every worked example on it except the path
+  example (paths are out of scope), as fetched on
+  2026-10-12, with the page's own sentence next to each vector.
+- **Hand-derived** from the documented rules and cross-checked against independent maths
+  (`struct` for IEEE 754, `datetime` for the 1904 epoch), and labelled as such.
 
-What already exists does not fill the gap. `npTDMS` and `nitdms` read TDMS files; `pylavi`,
-`lvkit` and `pylabview` parse VI and other source files; `PyVISA` and `nidaqmx` drive
-instruments. None of them is a general codec for arbitrary flattened data, and a PyPI search
-for a flatten or unflatten codec returns nothing maintained. `lvflatten` is that codec: pure
-standard library, fully typed, with the type declared explicitly so the round-trip is exact.
+On top of that come seeded fuzz tests, adversarial-input tests, and a mutation round showing
+the contract tests fail for every deliberate bug injected into the codec.
 
-## Scope and limits
+## Scope
 
-In scope for 0.3: the integer, float (SGL, DBL, EXT), boolean, boolean-array, string, array
-(including multi-dimensional), cluster and 128-bit timestamp types listed above, big- and
-little-endian, the top-level size toggle, the compact schema text form (`parse_schema` and
-`format_schema`), the `lvflatten` command-line tool, and the real-LabVIEW and NI-documented
-golden fixtures described above.
+Supported: the types in the table above, nested within the documented limits (64 levels in
+the text form), in both byte orders, one value per buffer (`unpack`) or several back to back
+(`unpack_from`).
+Not supported (yet): variants, waveforms, paths, refnums, enums, fixed-point numbers, sets,
+maps, LabVIEW classes, and reading LabVIEW type descriptors to build a schema automatically.
+`EXT` encodes every Python `float` exactly; decoding rounds LabVIEW's 113-bit significand to
+the nearest double.
 
-Out of scope for 0.3 (may come later): variant, waveform, LabVIEW path, refnum, enum and
-fixed-point types, and parsing LabVIEW type descriptors to build a schema automatically. The
-extended float round-trips any value a Python `float` can hold exactly; magnitudes beyond the
-IEEE 754 double range are lossy. `unpack` consumes the whole buffer and treats trailing bytes
-as an error, which catches a wrong schema or a wrong size.
+## More
 
-## License
-
-MIT. See [LICENSE](LICENSE).
-
-## Links
-
-- Website: https://lianes8studio.com
-- GitHub: https://github.com/JaviLianes8
-- LinkedIn: https://www.linkedin.com/in/jlianes/
+- [Guide](https://github.com/JaviLianes8/lvflatten/blob/main/GUIDE.md): every type, option,
+  error and the command-line tool.
+- [Changelog](https://github.com/JaviLianes8/lvflatten/blob/main/CHANGELOG.md), including
+  the migration notes from 0.x to 1.0.
+- License: [MIT](https://github.com/JaviLianes8/lvflatten/blob/main/LICENSE).
+- Author: Javier Lianes ([lianes8studio.com](https://lianes8studio.com),
+  [GitHub](https://github.com/JaviLianes8),
+  [LinkedIn](https://www.linkedin.com/in/jlianes/)).
