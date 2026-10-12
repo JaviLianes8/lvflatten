@@ -31,13 +31,11 @@ class String(Schema):
         if not isinstance(self.encoding, str):
             raise SchemaError("a string encoding must be a codec name")
         try:
-            info = codecs.lookup(self.encoding)
-            "".encode(self.encoding)
+            codecs.lookup(self.encoding)
+            "".encode(self.encoding)  # bytes-to-bytes codecs such as hex or zlib fail here
             b"".decode(self.encoding)
         except (LookupError, TypeError, ValueError):
             raise SchemaError(f"unknown text encoding {short(self.encoding)}") from None
-        if not getattr(info, "_is_text_encoding", True):
-            raise SchemaError(f"{short(self.encoding)} is not a text encoding")
 
     def __repr__(self) -> str:
         return "String()" if self.encoding == "utf-8" else f"String({self.encoding!r})"
