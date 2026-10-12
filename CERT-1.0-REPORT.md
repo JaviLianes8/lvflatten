@@ -12,7 +12,7 @@ Progress:
 - [x] Version bump to 1.0.0
 - [x] Independent reviewer and five QA lenses report PASS (items 16, 19)
 - [x] Gates (item 15)
-- [ ] PR and trace guard (item 17)
+- [x] PR and trace guard (item 17); merge and publish pending
 
 ## Baseline on 0.3.0 (before any change)
 
@@ -50,7 +50,7 @@ bytes could ask `unpack` for billions of empty lists; `prepend_size=False` was i
 | 14 | sdist and wheel contents | PASS | wheel: 20 modules + `py.typed` + LICENSE; sdist: src, tests, fixtures, README, GUIDE, CHANGELOG, LICENSE, pyproject, plus the `.gitignore` hatchling always adds (accepted); no process notes; embedded data is LabVIEW output captured by the author and short quoted NI examples with source URL |
 | 15 | Gates exit 0 alone | PASS | `ruff format --check .` 0, `ruff check .` 0, `mypy --strict src` 0, `pytest` 0 (918 passed), each run alone |
 | 16 | Independent reviewer | PASS | items 1 to 18 all PASS on re-review (see below) |
-| 17 | PR, trace guard | pending | see below |
+| 17 | PR, trace guard | ready | PR #3 from `release/1.0.0`, trace guard CLEAN; merge and PyPI publish are left to the maintainer |
 | 18 | Mutation round | PASS | author round: 26 mutations, 1 survivor fixed; blind lens (e) rounds: see below, every survivor got a contract and was re-killed |
 | 19 | Five QA lenses | PASS | a, b, c, d, e all PASS after their findings were fixed and re-verified (see below) |
 
