@@ -32,7 +32,7 @@ def _encode(value: float) -> int:
     sign = 1 if math.copysign(1.0, value) < 0 else 0
     if math.isnan(value):
         bits = int.from_bytes(struct.pack(">d", value), "big")
-        payload =(bits & ((1 << 52) - 1)) << _DOUBLE_FRACTION_SHIFT
+        payload = (bits & ((1 << 52) - 1)) << _DOUBLE_FRACTION_SHIFT
         return (sign << 127) | (_EXP_ALL_ONES << _FRACTION_BITS) | payload
     if math.isinf(value):
         return (sign << 127) | (_EXP_ALL_ONES << _FRACTION_BITS)
