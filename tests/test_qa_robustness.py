@@ -126,3 +126,16 @@ def test_a_list_lying_about_its_length_packs_its_real_items() -> None:
             return 10**12
 
     assert pack(Array(I32), Liar([1])) == pack(Array(I32), [1])
+
+
+def test_type_hints_of_every_public_function_resolve_at_runtime() -> None:
+    import typing
+
+    import lvflatten
+
+    for name in lvflatten.__all__:
+        obj = getattr(lvflatten, name)
+        if callable(obj) and not isinstance(obj, type):
+            typing.get_type_hints(obj)
+    for method in (lvflatten.LVTimestamp.from_datetime, lvflatten.LVTimestamp.to_datetime):
+        typing.get_type_hints(method)

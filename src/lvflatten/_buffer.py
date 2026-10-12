@@ -2,6 +2,18 @@
 
 from __future__ import annotations
 
+import sys
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing_extensions import Buffer
+elif sys.version_info >= (3, 12):
+    from collections.abc import Buffer
+else:  # what runtime hint resolution sees before Python 3.12
+    Buffer = bytes | bytearray | memoryview
+
+__all__ = ["Buffer", "as_view", "release"]
+
 
 def as_view(data: object) -> bytes | memoryview:
     """Return ``data`` as bytes or as a one-dimensional byte view of it.

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
 from ._array import pack_array, unpack_array
-from ._buffer import as_view, release
+from ._buffer import Buffer, as_view, release
 from ._cluster import pack_cluster, unpack_cluster
 from ._compound import Array, Cluster, String
 from ._errors import DataError, SchemaError, TrailingDataError, short
@@ -18,9 +18,6 @@ from ._string import decode_text, pack_bytes, pack_string, unpack_bytes, unpack_
 from ._timestamp import pack_timestamp, unpack_timestamp
 
 _BYTE_ORDER = {"big": ">", "little": "<"}
-
-if TYPE_CHECKING:
-    from typing_extensions import Buffer  # collections.abc.Buffer from Python 3.12
 
 
 def _prefix(byte_order: object) -> str:
