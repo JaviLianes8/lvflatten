@@ -83,3 +83,53 @@ def test_help_exits_zero(capsys: pytest.CaptureFixture[str]) -> None:
         main(["--help"])
     assert exc.value.code == 0
     assert "examples:" in capsys.readouterr().out
+
+
+def test_bytes_travel_as_hex_in_json(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["unflatten", "-s", "bytes", "-x", "00000002ff00", "--indent", "0"]) == 0
+    assert json.loads(capsys.readouterr().out) == "ff00"
+    assert main(["flatten", "-s", "cluster(b:bytes)", "-j", '{"b": "ff 00"}']) == 0
+    assert capsys.readouterr().out.strip() == "00000002ff00"
+
+
+def test_timestamp_travels_as_a_pair(capsys: pytest.CaptureFixture[str]) -> None:
+    assert (
+        main(["unflatten", "-s", "array(timestamp)", "-x", "00000001" + "00" * 7 + "01" + "00" * 8])
+        == 0
+    )
+    assert json.loads(capsys.readouterr().out) == [[1, 0]]
+    assert main(["flatten", "-s", "timestamp", "-j", "[1, 0]"]) == 0
+    assert capsys.readouterr().out.strip() == "00" * 7 + "01" + "00" * 8
+
+
+def test_quoted_field_names(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["unflatten", "-s", 'cluster("Error Code":i32)', "-x", "ffffffed"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"Error Code": -19}
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["unflatten", "-s", "i32", "-x", "zz"],
+        ["unflatten", "-s", "i32", "-x", "000"],
+        ["unflatten", "-s", "nope", "-x", "00"],
+        ["unflatten", "-s", "string", "-x", "00000001ff"],
+        ["flatten", "-s", "i8", "-j", "300"],
+        ["flatten", "-s", "i8", "-j", "{"],
+        ["flatten", "-s", "bytes", "-j", '"xyz"'],
+        ["flatten", "-s", "timestamp", "-j", "5"],
+        ["flatten", "-s", "array(i32)", "-j", "[" * 100_000],
+    ],
+)
+def test_bad_input_exits_one_with_a_message(
+    argv: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(argv) == 1
+    err = capsys.readouterr().err
+    assert err.startswith("error: ") and len(err) < 200
+
+
+def test_bad_arguments_exit_two() -> None:
+    with pytest.raises(SystemExit) as info:
+        main(["unflatten"])
+    assert info.value.code == 2

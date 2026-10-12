@@ -207,7 +207,9 @@ lvflatten --version
 
 With `-x` or `-j` omitted the input comes from standard input; hex may contain spaces and
 newlines. In JSON a time stamp is `[seconds, fraction]` and `Bytes` is a hex string. NaN and
-infinities are written as `NaN`, `Infinity` and `-Infinity`. The exit status is 0 on success,
+infinities are written as `NaN`, `Infinity` and `-Infinity`. A JSON value that starts with `-` but is not a
+plain number (such as `-Infinity`) must be attached to its option, `--json=-Infinity`, or
+piped in on standard input. The exit status is 0 on success,
 1 for bad data or a bad schema (with a one-line `error:` message on standard error), and 2 for
 bad arguments.
 
