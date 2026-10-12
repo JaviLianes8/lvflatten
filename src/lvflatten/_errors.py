@@ -81,6 +81,11 @@ class TrailingDataError(DataError):
         return (type(self), (self.count,))
 
 
+def count_text(count: int) -> str:
+    """Write a count for an error message, capping the huge products hostile sizes make."""
+    return str(count) if count < 1 << 63 else "more than 2**63"
+
+
 def short(value: object) -> str:
     """Return ``repr(value)`` cut to a bounded length, for use inside error messages."""
     text = repr(value)

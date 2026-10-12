@@ -77,3 +77,40 @@ def test_cli_time_stamp_must_be_a_pair(json_text: str) -> None:
     result = run_cli("flatten", "-s", "timestamp", "-j", json_text)
     assert result.returncode == 1
     assert "a timestamp must be a [seconds, fraction] pair" in result.stderr
+
+
+def test_messages_about_huge_declared_counts_stay_short() -> None:
+    from lvflatten import U8, TruncatedDataError
+
+    huge = (0x7FFFFFFF).to_bytes(4, "big")
+    with pytest.raises(TruncatedDataError) as truncated:
+        unpack(Array(U8, 64), huge * 64)
+    assert "more than 2**63" in str(truncated.value) and len(str(truncated.value)) < 120
+    with pytest.raises(DataError) as empty:
+        unpack(Array(U8, 64), huge * 63 + bytes(4))
+    assert "more than 2**63" in str(empty.value) and len(str(empty.value)) < 120
+    with pytest.raises(TruncatedDataError, match="declares 3 elements"):
+        unpack(Array(U8), bytes.fromhex("00000003"))
+
+
+def test_a_bytes_subclass_is_read_through_the_buffer_protocol() -> None:
+    from lvflatten import I32
+
+    class Odd(bytes):
+        def __getitem__(self, key: object) -> bytes:  # type: ignore[override]
+            return b""
+
+    assert unpack_from(I32, Odd(b"\x00\x00\x00\x01")) == (1, 4)
+    assert unpack(I32, Odd(b"\x00\x00\x00\x01")) == 1
+
+
+def test_shapes_beyond_the_free_budget_pack_but_are_refused_on_unpack() -> None:
+    from lvflatten import I32
+
+    small: list[list[int]] = [[]] * 1000
+    large: list[list[int]] = [[]] * 2000
+    assert unpack(Array(I32, 2), pack(Array(I32, 2), small)) == small
+    with pytest.raises(DataError):
+        unpack(Array(I32, 2), pack(Array(I32, 2), large))
+    with pytest.raises(DataError):
+        unpack(Array(Cluster([])), pack(Array(Cluster([])), [{}] * 2000))

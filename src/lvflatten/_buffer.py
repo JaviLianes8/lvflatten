@@ -22,7 +22,7 @@ def as_view(data: object) -> bytes | memoryview:
     ``memoryview``, ``array.array``, ``mmap``, ...). Contiguous buffers and strided views of
     single bytes are read in place; any other layout is copied once.
     """
-    if isinstance(data, bytes):
+    if type(data) is bytes:  # a subclass may override slicing, so it is viewed instead
         return data
     if isinstance(data, str):
         raise TypeError("data must be bytes-like, got str")

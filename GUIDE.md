@@ -218,7 +218,10 @@ claim more data than exists fail at once. Objects that cost no input bytes (the 
 array with a zero dimension, and the dicts of an array of empty clusters, counted through
 every nesting level) share a budget of 1024 plus one per input byte; beyond it `DataError`
 is raised. For `unpack_from` the input bytes are only those the value has read, so bytes
-further along a stream cannot be borrowed. Everything else the decoder builds consumes
+further along a stream cannot be borrowed. `pack` has no such limit, so a value with more
+than about a thousand empty rows or empty clusters (for example a 2000 x 0 array) packs but
+is refused by `unpack`; it is the price of a hard bound on what hostile bytes can cost.
+Everything else the decoder builds consumes
 input, so memory grows linearly with the data, by a factor fixed by the schema rather than
 by the bytes. An array has at most 64 dimensions.
 
@@ -226,7 +229,9 @@ by the bytes. An array has at most 64 dimensions.
 `array.array`, `mmap` and so on. `unpack_from` reads it in place (a strided view of single
 bytes too), so walking a long buffer stays linear, and releases it before returning or
 raising, so a `bytearray` can grow inside the `except` block that caught a
-`TruncatedDataError`.
+`TruncatedDataError`. Other non-contiguous layouts (a strided view of wider items, a
+Fortran-ordered array) are copied on every call: convert them with `bytes()` once before
+walking them with `unpack_from`.
 
 Schemas are ordinary immutable values: they compare by value, hash, copy and pickle (so they
 can be sent to worker processes). A schema nested thousands of levels deep is refused by the

@@ -88,7 +88,10 @@ Stable in 1.0: `pack` and `unpack` with `byte_order` and `prepend_size`; the sch
   once, and objects that cost no input bytes (rows of an empty array, dicts of empty
   clusters at any depth) share a budget of 1024 plus one per input byte (`DataError` beyond
   that). For `unpack_from` only the bytes the value itself has read count, so walking a
-  stream of hostile records stays linear.
+  stream of hostile records stays linear. `pack` has no such limit, so a value with more than about a thousand
+  empty rows or empty clusters packs but is refused by `unpack`. Error messages print
+  declared counts above 2**63 as "more than 2**63"; a `bytes` subclass is read through the
+  buffer protocol.
 - Schemas and `TrailingDataError` copy and pickle (0.3.0 `Cluster` could not be deep-copied
   or pickled).
 - Values that misbehave (a list subclass that lies about its length, a `str` whose `encode`

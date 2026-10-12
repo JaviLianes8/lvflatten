@@ -6,7 +6,7 @@ import struct
 from collections.abc import Callable
 
 from ._compound import Array
-from ._errors import DataError, SchemaError, TruncatedDataError
+from ._errors import DataError, SchemaError, TruncatedDataError, count_text
 from ._reader import Reader
 from ._schema import Schema
 from ._sizes import containers, fixed_size
@@ -95,7 +95,7 @@ def unpack_array(schema: Array, reader: Reader, bo: str, unpack_node: UnpackNode
         reader.spend_free(total * containers(schema.element) + _empty_rows(dims))
     elif element_size is not None and total * element_size > reader.remaining:
         raise TruncatedDataError(
-            f"array declares {total} elements of {element_size} bytes, "
+            f"array declares {count_text(total)} elements of {element_size} bytes, "
             f"only {reader.remaining} bytes available"
         )
     flat = [unpack_node(schema.element, reader, bo) for _ in range(total)]

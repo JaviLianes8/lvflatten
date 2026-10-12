@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ._errors import DataError, TruncatedDataError
+from ._errors import DataError, TruncatedDataError, count_text
 
 FREE_FLOOR = 1024
 
@@ -46,7 +46,7 @@ class Reader:
         end = self._pos if self._stream else len(self._data)
         if self._spent > FREE_FLOOR + end - self._start:
             raise DataError(
-                f"the data declares {count} empty items, more than its size can justify"
+                f"the data declares {count_text(count)} empty items, more than its size can justify"
             )
 
     @property
