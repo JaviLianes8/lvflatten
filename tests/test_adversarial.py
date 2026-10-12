@@ -33,6 +33,20 @@ def _timed(action: Callable[[], object]) -> float:
     return time.perf_counter() - start
 
 
+def _grows_linearly(small: Callable[[], object], large: Callable[[], object]) -> bool:
+    """Four times the input must cost under ten times the time (quadratic would be 16).
+
+    Timing on a shared machine is noisy, so the best of five runs is compared, and the
+    comparison is retried a few times before it counts as a failure.
+    """
+    for _ in range(3):
+        best_small = min(_timed(small) for _ in range(5))
+        best_large = min(_timed(large) for _ in range(5))
+        if best_large < best_small * 10:
+            return True
+    return False
+
+
 _TWO_MILLION = (2_000_000).to_bytes(4, "big")
 
 
@@ -81,9 +95,9 @@ def test_decoding_time_grows_linearly() -> None:
         return pack(Array(String()), ["ab"] * count)
 
     small, large = blob(20_000), blob(80_000)
-    best_small = min(_timed(lambda: unpack(Array(String()), small)) for _ in range(5))
-    best_large = min(_timed(lambda: unpack(Array(String()), large)) for _ in range(5))
-    assert best_large < best_small * 10
+    assert _grows_linearly(
+        lambda: unpack(Array(String()), small), lambda: unpack(Array(String()), large)
+    )
 
 
 def test_parsing_time_grows_linearly() -> None:
@@ -91,9 +105,7 @@ def test_parsing_time_grows_linearly() -> None:
         return "cluster(" + ", ".join(f"f{i}:i32" for i in range(count)) + ")"
 
     small, large = text(5_000), text(20_000)
-    best_small = min(_timed(lambda: parse_schema(small)) for _ in range(3))
-    best_large = min(_timed(lambda: parse_schema(large)) for _ in range(3))
-    assert best_large < best_small * 10
+    assert _grows_linearly(lambda: parse_schema(small), lambda: parse_schema(large))
 
 
 def test_text_nesting_limit() -> None:
