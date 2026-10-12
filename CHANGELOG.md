@@ -6,6 +6,85 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-12
+
+The first stable release. The public API is exactly `lvflatten.__all__` and follows semantic
+versioning from here on: names, signatures, defaults and error classes stay put until 2.0.
+Stable in 1.0: `pack` and `unpack` with `byte_order` and `prepend_size`; the schema nodes
+`I8` to `U64`, `SGL`, `DBL`, `EXT`, `Boolean`, `String`, `Bytes`, `Array`, `BoolArray`,
+`Cluster`, `Timestamp` and the `Schema` base class; `LVTimestamp`; `parse_schema` and
+`format_schema`; the error classes; and the `lvflatten` command line.
+
+### Changed (with migration notes)
+
+- **`EXT` now uses the IEEE 754 binary128 layout LabVIEW really writes.** Real LabVIEW 2026
+  output shows an extended number flattens as sign, 15-bit exponent and a 112-bit fraction
+  with an implicit leading one (1.0 is `3fff` then fourteen zero bytes). Every 0.x release
+  wrote the x87 80-bit layout with an explicit integer bit (1.0 was `3fff8000...`), which
+  LabVIEW reads as a different number. Migration: every `EXT` byte sequence changes; bytes
+  written by 0.x for `EXT` must be decoded with 0.x and re-encoded with 1.0. Encoding is
+  exact for every Python `float`, including signed zero, infinities and the NaN sign.
+- **Data errors have their own class.** Bytes that do not fit the schema now raise
+  `DataError` (a new `LVFlattenError` subclass) instead of `SchemaError`: negative string,
+  array or dimension sizes, text that does not decode, and a buffer that is not a whole
+  number of elements with `prepend_size=False`. `TruncatedDataError` is now a subclass of
+  `DataError`. Migration: catch `DataError` (or `LVFlattenError`) where you caught
+  `SchemaError` around `unpack`.
+- **Trailing bytes raise `TrailingDataError`** (a `DataError`, with a `count` attribute)
+  instead of a bare `LVFlattenError`. Code catching `LVFlattenError` is unaffected.
+- **`SchemaError` and `DataError` are also `ValueError`s**, so `except ValueError` catches
+  them.
+- **`BoolArray` is now exactly `Array(Boolean)`**, which has produced the same bytes since
+  0.3.0. `format_schema` writes it as `array(bool)`; `boolarray` is still accepted by
+  `parse_schema`. The internal `BoolArrayType` class is gone. As a side effect,
+  `pack(BoolArray, ..., prepend_size=False)` now drops the count like any other top-level
+  array (0.3.0 kept it).
+- **`Schema` is a base class** instead of a `typing` union, so `isinstance(x, Schema)` works
+  and every node has a docstring. Annotations using `Schema` keep working.
+- **`byte_order` is typed as `Literal["big", "little"]`.** Runtime behaviour is unchanged;
+  type checkers now flag other strings. A variable typed as plain `str` needs a `Literal`
+  annotation or a cast.
+- **Schema nodes are validated when built**: `String` checks that the codec exists,
+  `Array` checks its element and dimension count, and `Cluster` requires unique `str` names
+  and real schema nodes. Each raises `SchemaError`. Duplicate field names used to be
+  accepted and silently lost data on unpack.
+- **Ragged arrays are refused.** `pack(Array(I32, 2), [[1, 2], [3]])` used to write bytes
+  LabVIEW could not read back; it now raises `SchemaError`.
+- **No stray standard-library exceptions.** Out-of-range floats, EXT values and time stamp
+  seconds, unencodable text, undecodable text, unknown encodings and over-deep nesting used
+  to leak `OverflowError`, `struct.error`, `UnicodeError`, `LookupError` or
+  `RecursionError`; they now raise `SchemaError` or `DataError`. Decoding an EXT beyond the
+  double range returns infinity instead of raising `OverflowError`.
+- Scalar nodes repr as their public names (`I32`, `DBL`, `Boolean`, ...), and `Array`,
+  `String` and `Cluster` have compact reprs.
+
+### Added
+
+- `Bytes`, a schema node for LabVIEW strings used as byte buffers; its value is `bytes`
+  (`bytes` in the text form, a hex string in CLI JSON).
+- `Cluster` also accepts a dict of field name to schema.
+- `LVTimestamp.from_datetime()` and `LVTimestamp.to_datetime()`.
+- `unpack` accepts any bytes-like object (`bytes`, `bytearray`, `memoryview`) and raises
+  `TypeError` for anything else.
+- Quoted field names in the schema text form (`cluster("Error Code":i32)`), so any name
+  round-trips through `format_schema` and `parse_schema`; nesting beyond 64 levels is refused.
+- Decoding untrusted data is bounded: size headers that promise more data than exists fail at
+  once, and shapes that would build many objects from few bytes are limited to one object
+  per input byte (`DataError` beyond that).
+- `DataError` and `TrailingDataError` in the public API.
+- A guide (`GUIDE.md`) covering every public name; doctests on every public name.
+- Every worked example from NI's "Flattened Data" page, copied as fetched, as test vectors.
+- 24 more real LabVIEW 2026 captures (33 in all): EXT values, U64, 1-D and 2-D DBL arrays,
+  I32, Boolean and 2-D string arrays, nested clusters, and a time stamp.
+- Seeded fuzz and adversarial tests, and a mutation round proving the contract tests catch
+  injected bugs.
+
+### Fixed
+
+- The hand-written time stamp vector labelled 2002-01-01 encoded 2001-12-31; it is corrected
+  and cross-checked against `datetime`. Vectors that were labelled as NI-documented but were
+  hand-derived are now labelled as hand-derived.
+
 ## [0.3.0]
 
 ### Fixed

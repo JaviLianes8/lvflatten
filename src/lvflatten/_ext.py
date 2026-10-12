@@ -1,72 +1,75 @@
 """Pack and unpack the LabVIEW extended-precision float.
 
-LabVIEW flattens an extended number as the 80-bit format (one sign bit, a 15-bit exponent
-biased by 16383, and a 64-bit significand whose top bit is the explicit integer bit) held
-big-endian in the leading ten bytes of a sixteen-byte field, the last six bytes being zero.
-The maths here is pure Python so no numpy longdouble (platform-dependent) is involved. Any
-value that fits a Python float round-trips exactly. On decode, magnitudes beyond the double
-range become infinity and those below it round towards zero.
+LabVIEW flattens an extended number as 16 bytes in the IEEE 754 binary128 layout: one sign
+bit, a 15-bit exponent biased by 16383, and a 112-bit fraction with an implicit leading one.
+Real LabVIEW 2026 output confirms it: 1.0 is ``3fff`` followed by fourteen zero bytes, and
+0.1 carries the double's fraction moved to the top of the 112 bits.
+
+Encoding a Python ``float`` is exact (a double fits binary128 with room to spare, and its
+NaN payload and sign are kept). Decoding rounds the 113-bit significand to the nearest
+double; magnitudes beyond the double range become infinity and tiny ones round towards zero.
+The maths is pure Python, so no platform ``long double`` is involved.
 """
 
 from __future__ import annotations
 
 import math
+import struct
 
 from ._errors import SchemaError
 from ._reader import Reader
 
 _BIAS = 16383
 _EXP_ALL_ONES = 0x7FFF
-_INTEGER_BIT = 1 << 63
-_SIGNIFICAND_MASK = (1 << 64) - 1
-_FRACTION_MASK = (1 << 63) - 1
-_QUIET_NAN = 0xC000000000000000
+_FRACTION_BITS = 112
+_HIDDEN = 1 << _FRACTION_BITS
+_FRACTION_MASK = _HIDDEN - 1
+_DOUBLE_FRACTION_SHIFT = _FRACTION_BITS - 52
 
 
 def _encode(value: float) -> int:
-    """Return the 80 meaningful bits (sign, exponent, significand) packed into an int."""
-    if math.isnan(value):
-        return (_EXP_ALL_ONES << 64) | _QUIET_NAN
-    if math.isinf(value):
-        sign = 1 if value < 0 else 0
-        return (sign << 79) | (_EXP_ALL_ONES << 64) | _INTEGER_BIT
+    """Return the 128 bits (sign, exponent, fraction) of ``value`` as an int."""
     sign = 1 if math.copysign(1.0, value) < 0 else 0
+    if math.isnan(value):
+        bits = int.from_bytes(struct.pack(">d", value), "big")
+        payload =(bits & ((1 << 52) - 1)) << _DOUBLE_FRACTION_SHIFT
+        return (sign << 127) | (_EXP_ALL_ONES << _FRACTION_BITS) | payload
+    if math.isinf(value):
+        return (sign << 127) | (_EXP_ALL_ONES << _FRACTION_BITS)
     if value == 0.0:
-        return sign << 79
+        return sign << 127
     mantissa, exponent = math.frexp(abs(value))  # abs = mantissa * 2**exponent, 0.5 <= m < 1
-    significand = int(mantissa * (1 << 64))
-    biased = (exponent - 1 + _BIAS) & _EXP_ALL_ONES
-    return (sign << 79) | (biased << 64) | (significand & _SIGNIFICAND_MASK)
+    fraction = int(mantissa * (1 << (_FRACTION_BITS + 1))) - _HIDDEN  # exact: m has <= 53 bits
+    biased = exponent - 1 + _BIAS
+    return (sign << 127) | (biased << _FRACTION_BITS) | fraction
 
 
 def _decode(bits: int) -> float:
-    sign = (bits >> 79) & 1
-    exponent = (bits >> 64) & _EXP_ALL_ONES
-    significand = bits & _SIGNIFICAND_MASK
+    sign = -1.0 if bits >> 127 else 1.0
+    exponent = (bits >> _FRACTION_BITS) & _EXP_ALL_ONES
+    fraction = bits & _FRACTION_MASK
     if exponent == _EXP_ALL_ONES:
-        if significand & _FRACTION_MASK:
-            return math.nan
-        return -math.inf if sign else math.inf
-    if exponent == 0 and significand == 0:
-        return -0.0 if sign else 0.0
+        return math.copysign(math.nan if fraction else math.inf, sign)
+    if exponent == 0:
+        significand, scale = fraction, 1 - _BIAS - _FRACTION_BITS
+    else:
+        significand, scale = _HIDDEN | fraction, exponent - _BIAS - _FRACTION_BITS
     try:
-        value = math.ldexp(significand, exponent - _BIAS - 63)
+        magnitude = math.ldexp(float(significand), scale)
     except OverflowError:
-        value = math.inf  # beyond the double range: rounds to infinity, as documented
-    return -value if sign else value
+        magnitude = math.inf  # beyond the double range: rounds to infinity, as documented
+    return math.copysign(magnitude, sign)
 
 
 def pack_ext(value: object, bo: str, out: bytearray) -> None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise SchemaError("expected a real number for an extended float")
+        raise SchemaError(f"expected a real number for an EXT, got {type(value).__name__}")
     try:
         number = float(value)
     except OverflowError:
         raise SchemaError("value out of range for an EXT (beyond the double range)") from None
-    packed = _encode(number) << 48
-    out += packed.to_bytes(16, "big" if bo == ">" else "little")
+    out += _encode(number).to_bytes(16, "big" if bo == ">" else "little")
 
 
 def unpack_ext(reader: Reader, bo: str) -> float:
-    packed = int.from_bytes(reader.take(16), "big" if bo == ">" else "little")
-    return _decode(packed >> 48)
+    return _decode(int.from_bytes(reader.take(16), "big" if bo == ">" else "little"))

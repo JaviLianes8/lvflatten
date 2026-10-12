@@ -3,25 +3,26 @@
   "generated_date": "2026-10-11",
   "labview_version": "26.3.1f1 (LabVIEW 2026 Community)",
   "directory": "C:\\workspace_Python\\_labview-fixtures",
-  "method_that_worked": "Method C/D (run existing VI via COM). Shipped, password-protected-but-runnable VIs in vi.lib/variable/tagger/mndui/config/gendialog/dataConversion.llb (NumToFlattenVariant.vi, BoolToFlattenVariant.vi, TextToFlattenVariant.vi) wire a typed front-panel control to LabVIEW's native Flatten-To-String and expose the raw result in the 'data string' indicator. Driven via GetVIReference + SetControlValue + Run + GetControlValue. Output read as BSTR and decoded with cp1252 (LabVIEW's ANSI->BSTR codepage); every captured value was byte-verified against its independently-computed expected value.",
-  "methods_A_B_result": "IMPOSSIBLE. LabVIEW VI Scripting is not exposed through the ActiveX/VI-Server COM server (no Diagram/Node/Constant classes in the type library; NewVI/OpenVIReference/BlockDiagram and all node-creation names fail GetIDsOfNames on live Application and VI objects). Scripting is only available from inside G, which cannot be bootstrapped headlessly because no generator VI can be created without the GUI or an in-G scripting VI. g-cli is not installed; VI Server over TCP has the same object model (no scripting).",
-  "cross_checks": "All captured cases verified: DBL 0.25->3fd0000000000000, DBL 1.0->3ff0000000000000, +Inf->7ff0000000000000, -Inf->fff0000000000000, NaN->7ff8000000000000, Bool TRUE->01, FALSE->00, String 'ABC'->00000003414243 (U32 big-endian length prefix confirms prepend-size default ON, big-endian confirmed). These match NI documentation exactly, confirming the bytes are genuine LabVIEW output.",
+  "method_that_worked": "Method C/D (run existing VI via COM). Shipped, runnable VIs in vi.lib/variable/tagger/mndui/config/gendialog/dataConversion.llb wire a typed front-panel control to LabVIEW's native Flatten-To-String and expose the raw result in the 'data string' indicator. Driven via GetVIReference + SetControlValue + Run + GetControlValue. Output read as a BSTR and decoded with cp1252 (LabVIEW's ANSI<->BSTR codepage on this Spanish Windows); the cp1252 round-trip was proven lossless by byte-matching every reproduced value. Typed input controls discovered per VI: NumToFlattenVariant.vi control 'Numeric' (DBL), BitArrayToFlattenVariant.vi control 'Bit Array' (U32 scalar), BoolToFlattenVariant.vi control 'Boolean', TextToFlattenVariant.vi control 'Text' (String), BLOBToFlattenVariant.vi control 'Text' (String, flattened as a U32-length-prefixed byte/U8 array). Every captured value was byte-verified against its independently-computed expected value.",
+  "com_binding_note": "On this machine PowerShell's native COM adapter returns a broken dispatch for LabVIEW.Application (Version came back empty, member access threw NullReference). The reliable route is late-bound IDispatch: create the instance with [Activator]::CreateInstance([Type]::GetTypeFromProgID('LabVIEW.Application')) and invoke every member via reflection Type.InvokeMember (GetVIReference needs its 3 optional args passed explicitly, _GetTagNames needs a by-ref ParameterModifier). Strong-typed interop casting also fails: the LabVIEW automation objects expose IDispatch only (QueryInterface for the vtable interfaces returns the null IID), so a tlbimp interop (generated here from resource\\labview.tlb to read exact member signatures) is usable for introspection but not for casting the live RCW. GetControlValue/SetControlValue address controls by front-panel label and only accept controls wired into the VI's connector pane.",
+  "methods_A_B_result": "IMPOSSIBLE. LabVIEW VI Scripting is not exposed through the ActiveX/VI-Server COM server (no Diagram/Node/Constant classes in the type library; NewVI/OpenVIReference/BlockDiagram and all node-creation names fail GetIDsOfNames on live Application and VI objects). Scripting is only available from inside G, which cannot be bootstrapped headlessly. Diagram authoring was NOT retried in this run (accepted as proven). g-cli is not installed; VI Server over TCP has the same object model.",
+  "cross_checks": "All captured scalars/strings verified against NI-documented flatten layout and reproduced byte-for-byte from live LabVIEW: DBL 0.25->3fd0000000000000, DBL 1.0->3ff0000000000000, +Inf->7ff0000000000000, -Inf->fff0000000000000, NaN->7ff8000000000000, Bool TRUE->01, FALSE->00, String 'ABC'->00000003414243, empty->00000000 (U32 big-endian length prefix confirms prepend-size default ON and big-endian). New this run: 32-bit integer -19 data string ->ffffffed, U32 19 ->00000013 (4-byte big-endian, no type descriptor), U8/byte array [1,2,3] ->00000003010203 and [255,0,16] ->00000003ff0010 (U32 big-endian count + raw bytes). Every new case byte-matched its independently-computed expected value.",
   "captured_real_fixtures": [
     {
       "name": "DBL 0.25",
       "file": "flatten_dbl_0p25.bin",
-      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI NumToFlattenVariant.vi Numeric=DBL",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI NumToFlattenVariant.vi control 'Numeric' (DBL)",
       "status": "CAPTURED_REAL",
       "bytes_hex": "3fd0000000000000",
       "length": 8,
       "cross_check_hex": "3fd0000000000000",
       "cross_check_pass": true,
-      "note": "IEEE754 big-endian DBL"
+      "note": "IEEE754 big-endian DBL. Re-verified this run."
     },
     {
       "name": "DBL 1.0",
       "file": "flatten_dbl_1p0.bin",
-      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI NumToFlattenVariant.vi",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI NumToFlattenVariant.vi control 'Numeric' (DBL)",
       "status": "CAPTURED_REAL",
       "bytes_hex": "3ff0000000000000",
       "length": 8,
@@ -32,7 +33,7 @@
     {
       "name": "DBL NaN",
       "file": "flatten_dbl_nan.bin",
-      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI NumToFlattenVariant.vi",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI NumToFlattenVariant.vi control 'Numeric' (DBL)",
       "status": "CAPTURED_REAL",
       "bytes_hex": "7ff8000000000000",
       "length": 8,
@@ -43,7 +44,7 @@
     {
       "name": "DBL +Inf",
       "file": "flatten_dbl_posinf.bin",
-      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI NumToFlattenVariant.vi",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI NumToFlattenVariant.vi control 'Numeric' (DBL)",
       "status": "CAPTURED_REAL",
       "bytes_hex": "7ff0000000000000",
       "length": 8,
@@ -54,7 +55,7 @@
     {
       "name": "DBL -Inf",
       "file": "flatten_dbl_neginf.bin",
-      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI NumToFlattenVariant.vi",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI NumToFlattenVariant.vi control 'Numeric' (DBL)",
       "status": "CAPTURED_REAL",
       "bytes_hex": "fff0000000000000",
       "length": 8,
@@ -65,7 +66,7 @@
     {
       "name": "Bool TRUE",
       "file": "flatten_bool_true.bin",
-      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI BoolToFlattenVariant.vi (Boolean)",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI BoolToFlattenVariant.vi control 'Boolean'",
       "status": "CAPTURED_REAL",
       "bytes_hex": "01",
       "length": 1,
@@ -76,7 +77,7 @@
     {
       "name": "Bool FALSE",
       "file": "flatten_bool_false.bin",
-      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI BoolToFlattenVariant.vi",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI BoolToFlattenVariant.vi control 'Boolean'",
       "status": "CAPTURED_REAL",
       "bytes_hex": "00",
       "length": 1,
@@ -87,7 +88,7 @@
     {
       "name": "String ABC",
       "file": "flatten_string_abc.bin",
-      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI TextToFlattenVariant.vi (Text)",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI TextToFlattenVariant.vi control 'Text' (String)",
       "status": "CAPTURED_REAL",
       "bytes_hex": "00000003414243",
       "length": 7,
@@ -98,85 +99,367 @@
     {
       "name": "String empty",
       "file": "flatten_string_empty.bin",
-      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI TextToFlattenVariant.vi",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI TextToFlattenVariant.vi control 'Text' (String)",
       "status": "CAPTURED_REAL",
       "bytes_hex": "00000000",
       "length": 4,
       "cross_check_hex": "00000000",
       "cross_check_pass": true,
       "note": "empty string = length 0"
+    },
+    {
+      "name": "32-bit integer -19 (data string, byte-identical to flattened I32 -19)",
+      "file": "flatten_i32_neg19.bin",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI BitArrayToFlattenVariant.vi control 'Bit Array' (U32 scalar) set to 0xFFFFFFED",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "ffffffed",
+      "length": 4,
+      "cross_check_hex": "ffffffed",
+      "cross_check_pass": true,
+      "note": "Real LabVIEW flatten of a 32-bit integer. Captured by driving a shipped U32 control; the flatten 'data string' carries no type descriptor and a 32-bit integer flattens to 4 big-endian two's-complement bytes regardless of signedness, so these bytes are byte-identical to a flattened I32 = -19. Cross-checked against the documented I32 -19 value ffffffed."
+    },
+    {
+      "name": "U32 = 19",
+      "file": "flatten_u32_19.bin",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI BitArrayToFlattenVariant.vi control 'Bit Array' (U32 scalar) set to 19",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "00000013",
+      "length": 4,
+      "cross_check_hex": "00000013",
+      "cross_check_pass": true,
+      "note": "Confirms 4-byte big-endian U32 flatten (no size prefix, no type descriptor). 19 = 0x13."
+    },
+    {
+      "name": "1-D U8/byte array [1,2,3]",
+      "file": "flatten_u8_array_123.bin",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI BLOBToFlattenVariant.vi control 'Text' set to bytes 01 02 03 (BLOB flattens as a U8 array)",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "00000003010203",
+      "length": 7,
+      "cross_check_hex": "00000003010203",
+      "cross_check_pass": true,
+      "note": "Genuine 1-D array flatten: U32 big-endian count=3 then the element bytes. A LabVIEW U8 array and a String flatten identically (U32 length + bytes), so this is a real 1-D U8 array fixture."
+    },
+    {
+      "name": "1-D U8/byte array [255,0,16]",
+      "file": "flatten_u8_array_ff0010.bin",
+      "method": "ActiveX GetVIReference+SetControlValue+Run+GetControlValue on shipped VI BLOBToFlattenVariant.vi control 'Text' set to bytes FF 00 10",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "00000003ff0010",
+      "length": 7,
+      "cross_check_hex": "00000003ff0010",
+      "cross_check_pass": true,
+      "note": "Genuine 1-D U8 array flatten with high and zero bytes: U32 count=3 then FF 00 10. Also proves the cp1252 round-trip is lossless for 0xFF and 0x00."
+    },
+    {
+      "name": "EXT 1.0",
+      "file": "flatten_ext_1p0.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Connectivity\\Libraries and Executables\\DLL Calling VIs\\LVfloatExt.vi', SetControlValue('input', VT_R8 value), VI properties LogFilePath + LogAtFinish=TRUE, Run; bytes = the 'input' field (EXT, type descriptor 000a400b05696e707574) of the front-panel datalog record LabVIEW wrote (file C:/.../ext_<case>.dat in a temporary capture folder)",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "3fff0000000000000000000000000000",
+      "length": 16,
+      "cross_check_hex": "3fff0000000000000000000000000000",
+      "cross_check_pass": true,
+      "note": "Datalog record field, not the Flatten To String primitive itself: LabVIEW writes front-panel datalog records with its flatten encoding (validated this run: NumToFlattenVariant.vi datalog field 'Numeric'=3fd0000000000000 equals its own Flatten To String 'data string' output for 0.25, and TextToFlattenVariant.vi field 'Text'=00000003414243 equals its 'data string'). EXT layout is IEEE 754 binary128 (sign, 15-bit exponent bias 16383, NO explicit integer bit, 112-bit fraction), big-endian, 16 bytes. x87-padded candidate for this value: 3fff8000000000000000000000000000 (does not match). Value entered via COM as a DOUBLE, so the low fraction bits are zero."
+    },
+    {
+      "name": "EXT 0.25",
+      "file": "flatten_ext_0p25.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Connectivity\\Libraries and Executables\\DLL Calling VIs\\LVfloatExt.vi', SetControlValue('input', VT_R8 value), VI properties LogFilePath + LogAtFinish=TRUE, Run; bytes = the 'input' field (EXT, type descriptor 000a400b05696e707574) of the front-panel datalog record LabVIEW wrote (file C:/.../ext_<case>.dat in a temporary capture folder)",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "3ffd0000000000000000000000000000",
+      "length": 16,
+      "cross_check_hex": "3ffd0000000000000000000000000000",
+      "cross_check_pass": true,
+      "note": "Datalog record field, not the Flatten To String primitive itself: LabVIEW writes front-panel datalog records with its flatten encoding (validated this run: NumToFlattenVariant.vi datalog field 'Numeric'=3fd0000000000000 equals its own Flatten To String 'data string' output for 0.25, and TextToFlattenVariant.vi field 'Text'=00000003414243 equals its 'data string'). EXT layout is IEEE 754 binary128 (sign, 15-bit exponent bias 16383, NO explicit integer bit, 112-bit fraction), big-endian, 16 bytes. x87-padded candidate for this value: 3ffd8000000000000000000000000000 (does not match). Value entered via COM as a DOUBLE, so the low fraction bits are zero."
+    },
+    {
+      "name": "EXT -2.5",
+      "file": "flatten_ext_neg2p5.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Connectivity\\Libraries and Executables\\DLL Calling VIs\\LVfloatExt.vi', SetControlValue('input', VT_R8 value), VI properties LogFilePath + LogAtFinish=TRUE, Run; bytes = the 'input' field (EXT, type descriptor 000a400b05696e707574) of the front-panel datalog record LabVIEW wrote (file C:/.../ext_<case>.dat in a temporary capture folder)",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "c0004000000000000000000000000000",
+      "length": 16,
+      "cross_check_hex": "c0004000000000000000000000000000",
+      "cross_check_pass": true,
+      "note": "Datalog record field, not the Flatten To String primitive itself: LabVIEW writes front-panel datalog records with its flatten encoding (validated this run: NumToFlattenVariant.vi datalog field 'Numeric'=3fd0000000000000 equals its own Flatten To String 'data string' output for 0.25, and TextToFlattenVariant.vi field 'Text'=00000003414243 equals its 'data string'). EXT layout is IEEE 754 binary128 (sign, 15-bit exponent bias 16383, NO explicit integer bit, 112-bit fraction), big-endian, 16 bytes. x87-padded candidate for this value: c000a000000000000000000000000000 (does not match). Value entered via COM as a DOUBLE, so the low fraction bits are zero."
+    },
+    {
+      "name": "EXT 0.1 (from DBL 0.1)",
+      "file": "flatten_ext_0p1.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Connectivity\\Libraries and Executables\\DLL Calling VIs\\LVfloatExt.vi', SetControlValue('input', VT_R8 value), VI properties LogFilePath + LogAtFinish=TRUE, Run; bytes = the 'input' field (EXT, type descriptor 000a400b05696e707574) of the front-panel datalog record LabVIEW wrote (file C:/.../ext_<case>.dat in a temporary capture folder)",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "3ffb999999999999a000000000000000",
+      "length": 16,
+      "cross_check_hex": "3ffb999999999999a000000000000000",
+      "cross_check_pass": true,
+      "note": "Datalog record field, not the Flatten To String primitive itself: LabVIEW writes front-panel datalog records with its flatten encoding (validated this run: NumToFlattenVariant.vi datalog field 'Numeric'=3fd0000000000000 equals its own Flatten To String 'data string' output for 0.25, and TextToFlattenVariant.vi field 'Text'=00000003414243 equals its 'data string'). EXT layout is IEEE 754 binary128 (sign, 15-bit exponent bias 16383, NO explicit integer bit, 112-bit fraction), big-endian, 16 bytes. x87-padded candidate for this value: 3ffbccccccccccccd000000000000000 (does not match). Value entered via COM as a DOUBLE, so the low fraction bits are zero."
+    },
+    {
+      "name": "EXT 1e-310 (from DBL subnormal, normalized in EXT)",
+      "file": "flatten_ext_sub1em310.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Connectivity\\Libraries and Executables\\DLL Calling VIs\\LVfloatExt.vi', SetControlValue('input', VT_R8 value), VI properties LogFilePath + LogAtFinish=TRUE, Run; bytes = the 'input' field (EXT, type descriptor 000a400b05696e707574) of the front-panel datalog record LabVIEW wrote (file C:/.../ext_<case>.dat in a temporary capture folder)",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "3bf92688b70e62b00000000000000000",
+      "length": 16,
+      "cross_check_hex": "3bf92688b70e62b00000000000000000",
+      "cross_check_pass": true,
+      "note": "Datalog record field, not the Flatten To String primitive itself: LabVIEW writes front-panel datalog records with its flatten encoding (validated this run: NumToFlattenVariant.vi datalog field 'Numeric'=3fd0000000000000 equals its own Flatten To String 'data string' output for 0.25, and TextToFlattenVariant.vi field 'Text'=00000003414243 equals its 'data string'). EXT layout is IEEE 754 binary128 (sign, 15-bit exponent bias 16383, NO explicit integer bit, 112-bit fraction), big-endian, 16 bytes. x87-padded candidate for this value: 3bfa93445b8731580000000000000000 (does not match). Value entered via COM as a DOUBLE, so the low fraction bits are zero."
+    },
+    {
+      "name": "EXT +Inf",
+      "file": "flatten_ext_posinf.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Connectivity\\Libraries and Executables\\DLL Calling VIs\\LVfloatExt.vi', SetControlValue('input', VT_R8 value), VI properties LogFilePath + LogAtFinish=TRUE, Run; bytes = the 'input' field (EXT, type descriptor 000a400b05696e707574) of the front-panel datalog record LabVIEW wrote (file C:/.../ext_<case>.dat in a temporary capture folder)",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "7fff0000000000000000000000000000",
+      "length": 16,
+      "cross_check_hex": "7fff0000000000000000000000000000",
+      "cross_check_pass": true,
+      "note": "Datalog record field, not the Flatten To String primitive itself: LabVIEW writes front-panel datalog records with its flatten encoding (validated this run: NumToFlattenVariant.vi datalog field 'Numeric'=3fd0000000000000 equals its own Flatten To String 'data string' output for 0.25, and TextToFlattenVariant.vi field 'Text'=00000003414243 equals its 'data string'). EXT layout is IEEE 754 binary128 (sign, 15-bit exponent bias 16383, NO explicit integer bit, 112-bit fraction), big-endian, 16 bytes. x87-padded candidate for this value: 7fff8000000000000000000000000000 (does not match). Value entered via COM as a DOUBLE, so the low fraction bits are zero."
+    },
+    {
+      "name": "EXT -0.0",
+      "file": "flatten_ext_negzero.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Connectivity\\Libraries and Executables\\DLL Calling VIs\\LVfloatExt.vi', SetControlValue('input', VT_R8 value), VI properties LogFilePath + LogAtFinish=TRUE, Run; bytes = the 'input' field (EXT, type descriptor 000a400b05696e707574) of the front-panel datalog record LabVIEW wrote (file C:/.../ext_<case>.dat in a temporary capture folder)",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "80000000000000000000000000000000",
+      "length": 16,
+      "cross_check_hex": "80000000000000000000000000000000",
+      "cross_check_pass": true,
+      "note": "Datalog record field, not the Flatten To String primitive itself: LabVIEW writes front-panel datalog records with its flatten encoding (validated this run: NumToFlattenVariant.vi datalog field 'Numeric'=3fd0000000000000 equals its own Flatten To String 'data string' output for 0.25, and TextToFlattenVariant.vi field 'Text'=00000003414243 equals its 'data string'). EXT layout is IEEE 754 binary128 (sign, 15-bit exponent bias 16383, NO explicit integer bit, 112-bit fraction), big-endian, 16 bytes. x87-padded candidate for this value: 80000000000000000000000000000000 (does not match). Value entered via COM as a DOUBLE, so the low fraction bits are zero."
+    },
+    {
+      "name": "EXT DBL_MAX",
+      "file": "flatten_ext_max.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Connectivity\\Libraries and Executables\\DLL Calling VIs\\LVfloatExt.vi', SetControlValue('input', VT_R8 value), VI properties LogFilePath + LogAtFinish=TRUE, Run; bytes = the 'input' field (EXT, type descriptor 000a400b05696e707574) of the front-panel datalog record LabVIEW wrote (file C:/.../ext_<case>.dat in a temporary capture folder)",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "43fefffffffffffff000000000000000",
+      "length": 16,
+      "cross_check_hex": "43fefffffffffffff000000000000000",
+      "cross_check_pass": true,
+      "note": "Datalog record field, not the Flatten To String primitive itself: LabVIEW writes front-panel datalog records with its flatten encoding (validated this run: NumToFlattenVariant.vi datalog field 'Numeric'=3fd0000000000000 equals its own Flatten To String 'data string' output for 0.25, and TextToFlattenVariant.vi field 'Text'=00000003414243 equals its 'data string'). EXT layout is IEEE 754 binary128 (sign, 15-bit exponent bias 16383, NO explicit integer bit, 112-bit fraction), big-endian, 16 bytes. x87-padded candidate for this value: 43fefffffffffffff800000000000000 (does not match). Value entered via COM as a DOUBLE, so the low fraction bits are zero."
+    },
+    {
+      "name": "EXT NaN (from .NET double.NaN = fff8000000000000)",
+      "file": "flatten_ext_nan.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Connectivity\\Libraries and Executables\\DLL Calling VIs\\LVfloatExt.vi', SetControlValue('input', VT_R8 value), VI properties LogFilePath + LogAtFinish=TRUE, Run; bytes = the 'input' field (EXT, type descriptor 000a400b05696e707574) of the front-panel datalog record LabVIEW wrote (file C:/.../ext_<case>.dat in a temporary capture folder)",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "ffff8000000000000000000000000000",
+      "length": 16,
+      "cross_check_hex": "ffff8000000000000000000000000000",
+      "cross_check_pass": true,
+      "note": "Datalog record field, not the Flatten To String primitive itself: LabVIEW writes front-panel datalog records with its flatten encoding (validated this run: NumToFlattenVariant.vi datalog field 'Numeric'=3fd0000000000000 equals its own Flatten To String 'data string' output for 0.25, and TextToFlattenVariant.vi field 'Text'=00000003414243 equals its 'data string'). EXT layout is IEEE 754 binary128 (sign, 15-bit exponent bias 16383, NO explicit integer bit, 112-bit fraction), big-endian, 16 bytes. x87-padded candidate for this value: ffffc000000000000000000000000000 (does not match). Value entered via COM as a DOUBLE, so the low fraction bits are zero. NaN sign and quiet bit preserved from the DOUBLE."
+    },
+    {
+      "name": "Cluster {{String 'ABC', U64 19}, 2-D DBL 3x4, {Bool FALSE, I32 -19, String 'xyz'}}",
+      "file": "flatten_cluster_json_input.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Strings\\Unflatten From JSON.vi', SetControlValue('Input', cluster {{'ABC', U64 19}, 3x4 DBL [[1,2,3,4],[5,6,7,8],[0.25,-2.5,0.5,-1]], {FALSE, -19, 'xyz'}}), LogFilePath + LogAtFinish=TRUE, Run; bytes = front-panel datalog record field 'Input'",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "00000003414243000000000000001300000003000000043ff000000000000040000000000000004008000000000000401000000000000040140000000000004018000000000000401c00000000000040200000000000003fd0000000000000c0040000000000003fe0000000000000bff000000000000000ffffffed0000000378797a",
+      "length": 131,
+      "cross_check_hex": "00000003414243000000000000001300000003000000043ff000000000000040000000000000004008000000000000401000000000000040140000000000004018000000000000401c00000000000040200000000000003fd0000000000000c0040000000000003fe0000000000000bff000000000000000ffffffed0000000378797a",
+      "cross_check_pass": true,
+      "note": "Datalog record field (LabVIEW flatten encoding, validated against Flatten To String output this run, see EXT entries). Value cross-checked against GetControlValue after the run: Input read back identical. Nested clusters flatten as plain concatenation; U64 19 = 0000000000000013; 2-D array = U32 dims 3,4 then row-major DBLs."
+    },
+    {
+      "name": "2-D DBL array 3x4 (sub-span of the Input cluster record)",
+      "file": "flatten_dbl_array_2d_3x4.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Strings\\Unflatten From JSON.vi', SetControlValue('Input', cluster {{'ABC', U64 19}, 3x4 DBL [[1,2,3,4],[5,6,7,8],[0.25,-2.5,0.5,-1]], {FALSE, -19, 'xyz'}}), LogFilePath + LogAtFinish=TRUE, Run; bytes = front-panel datalog record field 'Input'",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "00000003000000043ff000000000000040000000000000004008000000000000401000000000000040140000000000004018000000000000401c00000000000040200000000000003fd0000000000000c0040000000000003fe0000000000000bff0000000000000",
+      "length": 104,
+      "cross_check_hex": "00000003000000043ff000000000000040000000000000004008000000000000401000000000000040140000000000004018000000000000401c00000000000040200000000000003fd0000000000000c0040000000000003fe0000000000000bff0000000000000",
+      "cross_check_pass": true,
+      "note": "Datalog record field (LabVIEW flatten encoding, validated against Flatten To String output this run, see EXT entries). Value cross-checked against GetControlValue after the run: byte span 15..118 of the Input field (after 'ABC' string and U64). Flatten of an array is position-independent inside a cluster."
+    },
+    {
+      "name": "2-D DBL array 2x4 [[5,6,7,8],[0.25,-2.5,0.5,-1]]",
+      "file": "flatten_dbl_array_2d_2x4.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Strings\\Unflatten From JSON.vi', SetControlValue('Input', cluster {{'ABC', U64 19}, 3x4 DBL [[1,2,3,4],[5,6,7,8],[0.25,-2.5,0.5,-1]], {FALSE, -19, 'xyz'}}), LogFilePath + LogAtFinish=TRUE, Run; bytes = front-panel datalog record field 'Remaining Unflattened Data (2-D DBL indicator)'",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "000000020000000440140000000000004018000000000000401c00000000000040200000000000003fd0000000000000c0040000000000003fe0000000000000bff0000000000000",
+      "length": 72,
+      "cross_check_hex": "000000020000000440140000000000004018000000000000401c00000000000040200000000000003fd0000000000000c0040000000000003fe0000000000000bff0000000000000",
+      "cross_check_pass": true,
+      "note": "Datalog record field (LabVIEW flatten encoding, validated against Flatten To String output this run, see EXT entries). Value cross-checked against GetControlValue after the run: [5,6,7,8,0.25,-2.5,0.5,-1]."
+    },
+    {
+      "name": "1-D DBL array [1,2,3,4]",
+      "file": "flatten_dbl_array_1d_1234.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Strings\\Unflatten From JSON.vi', SetControlValue('Input', cluster {{'ABC', U64 19}, 3x4 DBL [[1,2,3,4],[5,6,7,8],[0.25,-2.5,0.5,-1]], {FALSE, -19, 'xyz'}}), LogFilePath + LogAtFinish=TRUE, Run; bytes = front-panel datalog record field 'Unflattened First Data Row (1-D DBL indicator)'",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "000000043ff0000000000000400000000000000040080000000000004010000000000000",
+      "length": 36,
+      "cross_check_hex": "000000043ff0000000000000400000000000000040080000000000004010000000000000",
+      "cross_check_pass": true,
+      "note": "Datalog record field (LabVIEW flatten encoding, validated against Flatten To String output this run, see EXT entries). Value cross-checked against GetControlValue after the run: [1,2,3,4]."
+    },
+    {
+      "name": "Cluster {Bool FALSE, I32 -19, String 'xyz'} (error-cluster shape)",
+      "file": "flatten_cluster_bool_i32_string.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Strings\\Unflatten From JSON.vi', SetControlValue('Input', cluster {{'ABC', U64 19}, 3x4 DBL [[1,2,3,4],[5,6,7,8],[0.25,-2.5,0.5,-1]], {FALSE, -19, 'xyz'}}), LogFilePath + LogAtFinish=TRUE, Run; bytes = front-panel datalog record field 'Unflattened Error'",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "00ffffffed0000000378797a",
+      "length": 12,
+      "cross_check_hex": "00ffffffed0000000378797a",
+      "cross_check_pass": true,
+      "note": "Datalog record field (LabVIEW flatten encoding, validated against Flatten To String output this run, see EXT entries). Value cross-checked against GetControlValue after the run: [false,-19,'xyz']."
+    },
+    {
+      "name": "Timestamp 2026-10-12T08:19:16Z (whole seconds)",
+      "file": "flatten_timestamp_e6f24884.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Strings\\Unflatten From JSON.vi', SetControlValue('Input', cluster {{'ABC', U64 19}, 3x4 DBL [[1,2,3,4],[5,6,7,8],[0.25,-2.5,0.5,-1]], {FALSE, -19, 'xyz'}}), LogFilePath + LogAtFinish=TRUE, Run; bytes = front-panel datalog record field 'Unflattened Time (timestamp indicator)'",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "00000000e6f248840000000000000000",
+      "length": 16,
+      "cross_check_hex": "00000000e6f248840000000000000000",
+      "cross_check_pass": true,
+      "note": "Datalog record field (LabVIEW flatten encoding, validated against Flatten To String output this run, see EXT entries). Value cross-checked against GetControlValue after the run: 2026-10-12T08:19:16Z; also equals the JSON 'Time':3874637956 the VI emitted. Layout: I64 seconds since 1904-01-01 UTC, then U64 fraction (0 here, the JSON round trip drops fractions)."
+    },
+    {
+      "name": "U64 19 (sub-span of the Input cluster record)",
+      "file": "flatten_u64_19.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Strings\\Unflatten From JSON.vi', SetControlValue('Input', cluster {{'ABC', U64 19}, 3x4 DBL [[1,2,3,4],[5,6,7,8],[0.25,-2.5,0.5,-1]], {FALSE, -19, 'xyz'}}), LogFilePath + LogAtFinish=TRUE, Run; bytes = front-panel datalog record field 'Input'",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "0000000000000013",
+      "length": 8,
+      "cross_check_hex": "0000000000000013",
+      "cross_check_pass": true,
+      "note": "Datalog record field (LabVIEW flatten encoding, validated against Flatten To String output this run, see EXT entries). Value cross-checked against GetControlValue after the run: Description.Time element (U64, type code 0x08) set to 19; byte span 7..14 of the Input field."
+    },
+    {
+      "name": "1-D I32 array [2001,2003,2007,2010,2014]",
+      "file": "flatten_i32_array_1d.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Malleable VIs\\Basics\\Malleable VIs Basics Lesson 1.vi', LogFilePath + LogAtFinish=TRUE, Run (default inputs; the VI shuffles randomly, values read back with GetControlValue after the run); bytes = front-panel datalog record field 'Array with Incremented Element (1-D I32 indicator)'",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "00000005000007d1000007d3000007d7000007da000007de",
+      "length": 24,
+      "cross_check_hex": "00000005000007d1000007d3000007d7000007da000007de",
+      "cross_check_pass": true,
+      "note": "Datalog record field (LabVIEW flatten encoding, validated against Flatten To String output this run, see EXT entries). Value cross-checked against GetControlValue after the run: [2001,2003,2007,2010,2014]."
+    },
+    {
+      "name": "1-D I32 array [2003,2010,2007,2013,2001]",
+      "file": "flatten_i32_array_1d_shuffled.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Malleable VIs\\Basics\\Malleable VIs Basics Lesson 1.vi', LogFilePath + LogAtFinish=TRUE, Run (default inputs; the VI shuffles randomly, values read back with GetControlValue after the run); bytes = front-panel datalog record field 'Shuffled 1D Array (1-D I32 indicator)'",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "00000005000007d3000007da000007d7000007dd000007d1",
+      "length": 24,
+      "cross_check_hex": "00000005000007d3000007da000007d7000007dd000007d1",
+      "cross_check_pass": true,
+      "note": "Datalog record field (LabVIEW flatten encoding, validated against Flatten To String output this run, see EXT entries). Value cross-checked against GetControlValue after the run: [2003,2010,2007,2013,2001]."
+    },
+    {
+      "name": "1-D Boolean array [T,F,T,T]",
+      "file": "flatten_bool_array_1d_tftt.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Malleable VIs\\Basics\\Malleable VIs Basics Lesson 1.vi', LogFilePath + LogAtFinish=TRUE, Run (default inputs; the VI shuffles randomly, values read back with GetControlValue after the run); bytes = front-panel datalog record field 'Value Changed (1-D Boolean indicator)'",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "0000000401000101",
+      "length": 8,
+      "cross_check_hex": "0000000401000101",
+      "cross_check_pass": true,
+      "note": "Datalog record field (LabVIEW flatten encoding, validated against Flatten To String output this run, see EXT entries). Value cross-checked against GetControlValue after the run: [true,false,true,true]. One byte per boolean."
+    },
+    {
+      "name": "2-D String array 3x3",
+      "file": "flatten_string_array_2d_3x3.bin",
+      "method": "ActiveX: GetVIReference on shipped example VI 'C:\\Program Files\\National Instruments\\LabVIEW 2026\\examples\\Malleable VIs\\Basics\\Malleable VIs Basics Lesson 1.vi', LogFilePath + LogAtFinish=TRUE, Run (default inputs; the VI shuffles randomly, values read back with GetControlValue after the run); bytes = front-panel datalog record field 'Sorted 2D Array (2-D String indicator)'",
+      "status": "CAPTURED_REAL",
+      "bytes_hex": "00000003000000030000000141000000016e000000016e0000000146000000016f0000000178000000014e00000001610000000174",
+      "length": 53,
+      "cross_check_hex": "00000003000000030000000141000000016e000000016e0000000146000000016f0000000178000000014e00000001610000000174",
+      "cross_check_pass": true,
+      "note": "Datalog record field (LabVIEW flatten encoding, validated against Flatten To String output this run, see EXT entries). Value cross-checked against GetControlValue after the run: [A,n,n,F,o,x,N,a,t] row-major; each element U32 length + bytes."
     }
   ],
   "blocked_cases_no_fixture_written": [
     {
-      "name": "I32 = -19",
-      "intended_file": "flatten_i32.bin",
-      "status": "BLOCKED_NOT_CAPTURED",
-      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML. All shipped numeric->flatten converters (dataConversion.llb) use a DBL control, not I32.",
-      "ni_documented_reference_NOT_from_labview": "ffffffed"
-    },
-    {
       "name": "1-D DBL array [1,2,3]",
       "intended_file": "flatten_dbl_array_1d.bin",
       "status": "BLOCKED_NOT_CAPTURED",
-      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML. No shipped VI has a DBL-array control wired to Flatten To String.",
-      "ni_documented_reference_NOT_from_labview": "00000003 3ff0000000000000 4000000000000000 4008000000000000 (U32 count=3 then 3 big-endian DBLs; spaces for readability)"
+      "blocker": "No shipped, runnable VI on this machine exposes a settable DBL-array (or any typed numeric-array) control wired to the raw Flatten-To-String primitive. The only array-capable clean flatten wrapper found is BLOBToFlattenVariant.vi, whose control is a byte/U8 array (captured separately as flatten_u8_array_*). vi.lib/Utility/VariantFlattenExp.vi has a settable 'variant' control but (a) ignores a COM-set value (SetControlValue does not land on the variant terminal, the flatten always emits the empty-variant form) and (b) flattens in variant format with an embedded type descriptor (30-byte constant), not the clean typed array flatten. The VI-Analyzer 'Flt Array/Flatten Value.vi' emits a config string, not a raw binary flatten (verified: its connector 'Value' is a String and a set DBL array produces empty output). Authoring a VI with a DBL-array control needs VI Scripting, which is not exposed via COM.",
+      "ni_documented_reference_NOT_from_labview": "00000003 3ff0000000000000 4000000000000000 4008000000000000 (U32 count=3 then 3 big-endian DBLs; spaces for readability)",
+      "superseded_by_2026_10_12": "flatten_dbl_array_1d_1234.bin (values [1,2,3,4])"
     },
     {
       "name": "2-D DBL array [[1,2],[3,4]]",
       "intended_file": "flatten_dbl_array_2d.bin",
       "status": "BLOCKED_NOT_CAPTURED",
-      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML.",
-      "ni_documented_reference_NOT_from_labview": "00000002 00000002 3ff0... 4000... 4008... 4010... (two U32 dims=2,2 then 4 big-endian DBLs row-major)"
+      "blocker": "Same blocker as the 1-D DBL array: no shipped runnable VI exposes a settable 2-D numeric-array control wired to the raw Flatten-To-String primitive, VariantFlattenExp.vi ignores COM-set values and emits variant-format bytes, and the VI-Analyzer '2D Flt/Flatten Value.vi' emits a config string rather than a raw flatten. Authoring one needs VI Scripting (not exposed via COM).",
+      "ni_documented_reference_NOT_from_labview": "00000002 00000002 3ff0... 4000... 4008... 4010... (two U32 dims=2,2 then 4 big-endian DBLs row-major)",
+      "superseded_by_2026_10_12": "flatten_dbl_array_2d_2x4.bin, flatten_dbl_array_2d_3x4.bin (other shapes/values)"
+    },
+    {
+      "name": "Scalar U8 / U16 / I64 (and I32/U32 under their own type descriptor)",
+      "intended_file": "flatten_scalar_u8_u16_i64.bin",
+      "status": "BLOCKED_NOT_CAPTURED",
+      "blocker": "No shipped, runnable VI exposes a settable U8, U16, I64 or U64 scalar control wired to raw Flatten-To-String. The shipped numeric flatten controls are DBL (NumToFlattenVariant.vi 'Numeric', also used by EnumNumToFlattenVariant.vi) and a single U32 scalar (BitArrayToFlattenVariant.vi 'Bit Array'); setting an integer into the DBL control coerces to DBL. The 32-bit width was captured via the U32 control (flatten_i32_neg19.bin, flatten_u32_19.bin); the other integer widths would need controls of those exact types, which only VI Scripting could author.",
+      "ni_documented_reference_NOT_from_labview": "U8 200 -> c8 (1 byte); U16 40000 -> 9c40 (2 bytes big-endian); I64 -19 -> ffffffffffffffed (8 bytes big-endian two's complement)"
     },
     {
       "name": "LabVIEW Timestamp 2002-01-01 00:00:00 UTC",
       "intended_file": "flatten_timestamp.bin",
       "status": "BLOCKED_NOT_CAPTURED",
-      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML. No shipped VI has a settable Timestamp control wired to flatten.",
-      "ni_documented_reference_NOT_from_labview": "00000000b8555b00 0000000000000000 (i64 seconds since 1904 epoch = 0xB8555B00, then u64 fractional=0; 16 bytes total)"
+      "blocker": "No shipped, runnable VI exposes a settable Timestamp control wired to raw Flatten-To-String, and a Timestamp cannot be composed and set through COM/VARIANT. Authoring a VI with a Timestamp control wired to flatten needs VI Scripting (not exposed via COM).",
+      "ni_documented_reference_NOT_from_labview": "00000000b8555b00 0000000000000000 (i64 seconds since 1904 epoch = 0xB8555B00, then u64 fractional=0; 16 bytes total)",
+      "superseded_by_2026_10_12": "flatten_timestamp_e6f24884.bin (different instant, fraction 0)"
     },
     {
-      "name": "EXT (extended) = 1.0",
-      "intended_file": "flatten_ext_1p0.bin",
+      "name": "EXT (extended) = 1.0 / 0.25",
+      "intended_file": "flatten_ext.bin",
       "status": "BLOCKED_NOT_CAPTURED",
-      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML. COM/VARIANT has no 80/128-bit extended type and no shipped VI exposes a settable EXT control.",
-      "ni_documented_reference_NOT_from_labview": "platform-dependent 80-bit/128-bit extended; not provided by NI quick-ref"
-    },
-    {
-      "name": "EXT (extended) = 0.25",
-      "intended_file": "flatten_ext_0p25.bin",
-      "status": "BLOCKED_NOT_CAPTURED",
-      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML.",
-      "ni_documented_reference_NOT_from_labview": null
+      "blocker": "COM/VARIANT has no 80/128-bit extended type and no shipped runnable VI exposes a settable EXT control wired to raw Flatten-To-String. Authoring one needs VI Scripting (not exposed via COM).",
+      "ni_documented_reference_NOT_from_labview": "platform-dependent 80-bit/128-bit extended; not provided by NI quick-ref",
+      "superseded_by_2026_10_12": "flatten_ext_1p0.bin, flatten_ext_0p25.bin and other flatten_ext_*.bin (via datalog record)"
     },
     {
       "name": "Cluster {I32=-19, DBL=0.25, String=\"ABC\", BoolArray=[F,T,T,F]}",
       "intended_file": "flatten_cluster.bin",
       "status": "BLOCKED_NOT_CAPTURED",
-      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML. Clusters cannot be composed or set via COM, and no shipped cluster-flatten VI with this layout exists.",
-      "ni_documented_reference_NOT_from_labview": "concatenation in cluster order: ffffffed 3fd0000000000000 00000003414243 00000004 00 01 01 00 (I32, DBL, len-prefixed string, then U32 bool-array count=4 + 4 bool bytes)"
+      "blocker": "Clusters cannot be composed or set via COM (SetControlValue has no way to build an arbitrary cluster layout), and no shipped runnable VI exposes a settable cluster control of this layout wired to raw Flatten-To-String. Authoring one needs VI Scripting (not exposed via COM).",
+      "ni_documented_reference_NOT_from_labview": "concatenation in cluster order: ffffffed 3fd0000000000000 00000003414243 00000004 00 01 01 00 (I32, DBL, len-prefixed string, then U32 bool-array count=4 + 4 bool bytes)",
+      "superseded_by_2026_10_12": "flatten_cluster_json_input.bin, flatten_cluster_bool_i32_string.bin (different layouts)"
     },
     {
       "name": "FXP word=16 int=8 signed, 1.25",
       "intended_file": "flatten_fxp_w16i8_1p25.bin",
       "status": "BLOCKED_NOT_CAPTURED",
-      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML. COM has no fixed-point type and no shipped VI exposes a settable FXP control.",
+      "blocker": "COM has no fixed-point type and no shipped runnable VI exposes a settable FXP control wired to raw Flatten-To-String. Authoring one needs VI Scripting (not exposed via COM).",
       "ni_documented_reference_NOT_from_labview": "0140 (16-bit container, 1.25 * 2^8 = 320 = 0x0140, big-endian)"
     },
     {
       "name": "Flatten To JSON: DBL NaN / +Inf / -Inf / normal cluster",
       "intended_file": "flatten_json_naninf.json",
       "status": "BLOCKED_NOT_CAPTURED",
-      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML. 'Flatten To JSON' is a diagram primitive; no shipped runnable wrapper VI exists. The bundled 'JSONtext Toolkit' in vi.lib is only a VIPM link stub (no VIs). Capturing the primitive's exact token spelling needs a VI that cannot be authored headlessly.",
+      "blocker": "'Flatten To JSON' is a diagram primitive; no shipped runnable wrapper VI exposes it with a settable control. The bundled 'JSONtext Toolkit' in vi.lib is only a VIPM link stub (no VIs). Capturing the primitive's exact token spelling needs a VI that cannot be authored headlessly (VI Scripting not exposed via COM).",
       "ni_documented_reference_NOT_from_labview": "LabVIEW primitive typically emits NaN/Infinity/-Infinity bare tokens and full-precision numbers, but EXACT spelling must be captured, not assumed"
     },
     {
       "name": "Flatten To XML: cluster {I32,DBL,String}",
       "intended_file": "flatten_xml_cluster.xml",
       "status": "BLOCKED_NOT_CAPTURED",
-      "blocker": "No fully-automated route exists on this machine to flatten this type. LabVIEW VI Scripting is NOT exposed through the ActiveX/VI-Server COM interface (proven: the 'LabVIEW 2026 Type Library' has no Diagram/Node/Constant/BlockDiagram classes, and GetIDsOfNames for NewVI/OpenVIReference/BlockDiagram/node-creation all fail on the live Application and VI objects). Scripting is only available from within G. COM can only RUN existing VIs and get/set control values; it cannot create a VI or build a diagram. No shipped, runnable VI exposes a settable control of this type wired to Flatten-To-String/JSON/XML. 'Flatten To XML' is a diagram primitive; no shipped runnable wrapper exposes a settable cluster. The only shipped XML-flatten VIs are the VI-Analyzer config-tree ones, which emit a different, config-specific schema.",
+      "blocker": "'Flatten To XML' is a diagram primitive; no shipped runnable wrapper exposes a settable cluster. The only shipped XML-flatten VIs are the VI-Analyzer config-tree ones, which emit a different, config-specific schema. Authoring a wrapper needs VI Scripting (not exposed via COM).",
       "ni_documented_reference_NOT_from_labview": "<Cluster><Name>..</Name><NumElts>3</NumElts><I32>..</I32><DBL>..</DBL><String>..</String></Cluster> (schema must be captured for exactness)"
+    },
+    {
+      "name": "Scalar I16 / U16 / SGL / I64 (retry 2026-10-12)",
+      "intended_file": "flatten_scalar_i16_u16_sgl_i64.bin",
+      "status": "BLOCKED_NOT_CAPTURED",
+      "blocker": "Not captured within the time box. The datalog route needs a shipped, runnable VI that has a front-panel control of each of these exact types that completes without user interaction; no such VI was identified and verified in this run (a TD scan of examples found I16/U16/SGL/I64 labels mostly inside subVI types or in VIs with loops, scripting or hardware). U64 was captured as a cluster element (flatten_u64_19.bin)."
+    },
+    {
+      "name": "EXT through the Flatten To String primitive itself",
+      "intended_file": "flatten_ext_*.bin",
+      "status": "PARTIAL",
+      "blocker": "No shipped VI wires an EXT control into Flatten To String. EXT bytes were captured from the front-panel datalog record instead; the datalog encoding was shown byte-identical to Flatten To String for DBL and String in the same run, but an EXT-specific equivalence could not be shown directly."
+    },
+    {
+      "name": "Timestamp with non-zero fraction",
+      "intended_file": "flatten_timestamp_frac.bin",
+      "status": "BLOCKED_NOT_CAPTURED",
+      "blocker": "The only timestamp captured comes from a JSON round trip that drops fractional seconds; COM DateTime inputs were not tried on a timestamp control within the time box."
     }
-  ]
+  ],
+  "method_datalog_2026_10_12": "Second capture run (2026-10-12): front-panel datalogging driven over ActiveX. Set the VI properties LogFilePath and LogAtFinish=TRUE, set inputs with SetControlValue, Run, then read the DTLG file LabVIEW writes. Each record holds a U32+U16 header followed by every front-panel control in the flatten encoding; fields were located by walking the type descriptors stored in the same file. Equivalence with Flatten To String was validated in the same run: NumToFlattenVariant.vi (Numeric=0.25) logged Numeric=3fd0000000000000 and its Flatten To String 'data string' indicator contained exactly 3fd0000000000000; TextToFlattenVariant.vi (Text='ABC') logged Text=00000003414243 and its 'data string' contained exactly 00000003414243. Clusters are set over COM as nested object[] (assign with Array.SetValue to avoid PowerShell PSObject wrapping); 2-D arrays as double[,].",
+  "ext_verdict": "LabVIEW 2026 (Windows x64) flattens EXT as 16 big-endian bytes in IEEE 754 binary128 layout: sign bit, 15-bit exponent with bias 16383, no explicit integer bit, 112-bit fraction. Evidence: 1.0 -> 3fff0000000000000000000000000000 (x87-padded would be 3fff8000000000000000000000000000), 0.1 -> 3ffb999999999999a000000000000000 (the DBL fraction 999999999999a left-aligned; x87 would be 3ffbcccccccccccccd00000000000000), DBL subnormal 1e-310 -> normalized 3bf92688b70e62b00000000000000000. Values entered as DOUBLE via COM, so fraction bits below bit 60 are zero."
 }

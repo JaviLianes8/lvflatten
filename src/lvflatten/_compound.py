@@ -43,11 +43,15 @@ class String(Schema):
 class Array(Schema):
     """A LabVIEW array: one I32 size per dimension, then the elements in row-major order.
 
-    The value is a list (nested ``ndims`` deep) or a tuple; unpack always returns lists.
+    The value is a list (nested ``ndims`` deep) or a tuple; rows must be rectangular, and
+    unpack always returns lists. ``BoolArray`` is a ready-made ``Array(Boolean)``.
 
     >>> from lvflatten import I8, Array, pack
     >>> pack(Array(I8, 2), [[1, 2, 3], [4, 5, 6]]).hex()
     '0000000200000003010203040506'
+    >>> from lvflatten import Boolean, BoolArray
+    >>> BoolArray == Array(Boolean), pack(BoolArray, [True, False]).hex()
+    (True, '000000020100')
     """
 
     element: Schema

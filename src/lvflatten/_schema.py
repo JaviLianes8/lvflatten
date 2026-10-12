@@ -47,6 +47,9 @@ class IntType(Schema):
     b'\\xff\\xfe'
     >>> unpack(U32, b"\\xde\\xad\\xbe\\xef") == 0xDEADBEEF
     True
+    >>> from lvflatten import I8, I32, I64, U8, U16, U64
+    >>> [len(pack(t, 0)) for t in (I8, I16, I32, I64, U8, U16, U32, U64)]
+    [1, 2, 4, 8, 1, 2, 4, 8]
     """
 
     bits: int
@@ -94,13 +97,13 @@ class _Singleton(Schema):
 
 
 class ExtType(_Singleton):
-    """``EXT``: an extended float, 80-bit x87 format held big-endian in a 16-byte field.
+    """``EXT``: an extended float, flattened as 16 bytes in the IEEE 754 binary128 layout.
 
-    Values a Python ``float`` can hold round-trip exactly; wider ones are rounded.
+    Every Python ``float`` encodes exactly; decoding rounds to the nearest double.
 
     >>> from lvflatten import EXT, pack, unpack
     >>> pack(EXT, 1.0).hex()
-    '3fff8000000000000000000000000000'
+    '3fff0000000000000000000000000000'
     >>> unpack(EXT, pack(EXT, -2.5))
     -2.5
     """

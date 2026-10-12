@@ -42,7 +42,7 @@ GOLDEN = [
     ("i64", I64, 1, "0000000000000001"),
     ("sgl_one", SGL, 1.0, "3f800000"),
     ("dbl_one", DBL, 1.0, "3ff0000000000000"),
-    ("ext_one", EXT, 1.0, "3fff8000000000000000000000000000"),
+    ("ext_one", EXT, 1.0, "3fff0000000000000000000000000000"),
     ("bool_true", Boolean, True, "01"),
     ("bool_false", Boolean, False, "00"),
     ("boolarray", BoolArray, [True, False, True], "00000003010001"),
