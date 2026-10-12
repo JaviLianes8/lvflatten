@@ -18,7 +18,21 @@ assert isinstance(I32, Schema)  # every node derives from Schema
 ```
 
 `pack(schema, value)` returns `bytes`. `unpack(schema, data)` returns the Python value and
-requires the whole buffer to be consumed.
+requires the whole buffer to be consumed; `unpack_from` (section 3) reads one value from the
+middle of a longer buffer.
+
+`unpack` is typed to return `object`, because the type depends on the schema. Under a strict
+type checker, narrow it with `isinstance` or `typing.cast`:
+
+```python
+from typing import cast
+
+from lvflatten import I32, Cluster, String, pack, unpack
+
+count = cast(int, unpack(I32, pack(I32, 41))) + 1
+record = cast(dict[str, object], unpack(Cluster({"s": String()}), pack(String(), "x")))
+assert count == 42 and record == {"s": "x"}
+```
 
 ## 2. Schema nodes
 
@@ -137,6 +151,28 @@ assert pack(String(), "ABC", prepend_size=False) == b"ABC"
 assert unpack(Array(I32), bytes.fromhex("0000000100000002"), prepend_size=False) == [1, 2]
 ```
 
+`prepend_size` must be a real `bool`; anything else raises `SchemaError`.
+
+### Several values back to back
+
+`unpack_from(schema, data, offset=0, *, byte_order="big")` reads one value starting at
+`offset` and returns `(value, next_offset)`, leaving any following bytes alone. It mirrors
+the "rest of the flattened string" output of LabVIEW's Unflatten From String and is the way
+to walk a buffer or TCP stream holding several flattened values. Sizes are always read from
+the data, so it has no `prepend_size` option.
+
+```python
+from lvflatten import I16, Cluster, String, pack, unpack_from
+
+record = Cluster([("n", I16), ("s", String())])
+stream = pack(record, {"n": 1, "s": "a"}) + pack(record, {"n": 2, "s": "bc"})
+offset, values = 0, []
+while offset < len(stream):
+    value, offset = unpack_from(record, stream, offset)
+    values.append(value)
+assert values == [{"n": 1, "s": "a"}, {"n": 2, "s": "bc"}]
+```
+
 ## 4. Errors
 
 Every deliberate error derives from `LVFlattenError`, and every one of those is also a
@@ -149,7 +185,10 @@ Every deliberate error derives from `LVFlattenError`, and every one of those is 
 | `TruncatedDataError` (a `DataError`) | the bytes end before the value does |
 | `TrailingDataError` (a `DataError`) | bytes are left over; `.count` says how many |
 
-Passing something that is not bytes-like as `data` raises `TypeError`. Messages never echo
+`LVTimestamp.from_datetime` raises `SchemaError` for a naive datetime, and `to_datetime`
+raises `DataError` for a time stamp outside the years 1 to 9999. A `String` encoding must be a
+text codec (`"hex"` or `"zlib"` raise `SchemaError`). Passing something that is not
+bytes-like as `data` raises `TypeError`, as does calling `Schema()` itself. Messages never echo
 the value being packed, and anything quoted from the input is cut to a few dozen characters.
 
 ```python

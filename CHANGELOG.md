@@ -40,11 +40,15 @@ Stable in 1.0: `pack` and `unpack` with `byte_order` and `prepend_size`; the sch
   `pack(BoolArray, ..., prepend_size=False)` now drops the count like any other top-level
   array (0.3.0 kept it).
 - **`Schema` is a base class** instead of a `typing` union, so `isinstance(x, Schema)` works
-  and every node has a docstring. Annotations using `Schema` keep working.
+  and every node has a docstring. Annotations using `Schema` keep working. `Schema()` itself
+  cannot be instantiated (`TypeError`).
 - **`byte_order` is typed as `Literal["big", "little"]`.** Runtime behaviour is unchanged;
   type checkers now flag other strings. A variable typed as plain `str` needs a `Literal`
   annotation or a cast.
-- **Schema nodes are validated when built**: `String` checks that the codec exists,
+- **`prepend_size` must be a `bool`.** 0.x treated any truthy or falsy value as the flag;
+  1.0 raises `SchemaError` for anything but `True` or `False`.
+- **Schema nodes are validated when built**: `String` checks that the codec exists and is a
+  text codec (`"hex"`, `"base64"` or `"zlib"` are refused),
   `Array` checks its element and dimension count, and `Cluster` requires unique `str` names
   and real schema nodes. Each raises `SchemaError`. Duplicate field names used to be
   accepted and silently lost data on unpack.
@@ -54,7 +58,9 @@ Stable in 1.0: `pack` and `unpack` with `byte_order` and `prepend_size`; the sch
   seconds, unencodable text, undecodable text, unknown encodings and over-deep nesting used
   to leak `OverflowError`, `struct.error`, `UnicodeError`, `LookupError` or
   `RecursionError`; they now raise `SchemaError` or `DataError`. Decoding an EXT beyond the
-  double range returns infinity instead of raising `OverflowError`.
+  double range returns infinity instead of raising `OverflowError`, and EXT values in the
+  double subnormal range round once, to the nearest double.
+- Error messages say "an 8-bit" and "a 16-bit", and "1 trailing byte".
 - Scalar nodes repr as their public names (`I32`, `DBL`, `Boolean`, ...), and `Array`,
   `String` and `Cluster` have compact reprs.
 
@@ -63,7 +69,11 @@ Stable in 1.0: `pack` and `unpack` with `byte_order` and `prepend_size`; the sch
 - `Bytes`, a schema node for LabVIEW strings used as byte buffers; its value is `bytes`
   (`bytes` in the text form, a hex string in CLI JSON).
 - `Cluster` also accepts a dict of field name to schema.
-- `LVTimestamp.from_datetime()` and `LVTimestamp.to_datetime()`.
+- `unpack_from(schema, data, offset=0)`, which reads one value from the middle of a buffer
+  and returns it with the offset of the next byte, for several flattened values sent back to
+  back (the "rest of the flattened string" output of LabVIEW's Unflatten From String).
+- `LVTimestamp.from_datetime()` and `LVTimestamp.to_datetime()`; a naive datetime raises
+  `SchemaError` and an out-of-range time stamp raises `DataError`.
 - `unpack` accepts any bytes-like object (`bytes`, `bytearray`, `memoryview`) and raises
   `TypeError` for anything else.
 - Quoted field names in the schema text form (`cluster("Error Code":i32)`), so any name

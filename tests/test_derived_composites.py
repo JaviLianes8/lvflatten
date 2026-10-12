@@ -2,7 +2,8 @@
 
 These shapes (1-D and 2-D DBL arrays, a 128-bit timestamp, and a mixed cluster) are NOT
 worked examples on NI's "Flattened Data" page (those live, verbatim, in
-``test_ni_reference.py``) and could not be captured from LabVIEW on this machine. Each vector
+``test_ni_reference.py``). Real LabVIEW captures of similar shapes live in
+``test_real_labview.py``; these vectors are an extra, independent check. Each vector
 was written by hand from the documented rules (big-endian numbers, I32 dimension sizes,
 clusters back to back, booleans one byte each) and is cross-checked here against an oracle
 that does not use this library: ``struct`` for the IEEE 754 doubles and ``datetime`` for

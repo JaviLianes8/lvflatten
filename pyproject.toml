@@ -67,7 +67,7 @@ include = [
     "LICENSE",
     "pyproject.toml",
 ]
-exclude = ["**/__pycache__", "**/*.pyc"]
+exclude = ["**/__pycache__", "**/*.pyc", ".gitignore"]
 
 [tool.ruff]
 line-length = 100

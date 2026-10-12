@@ -99,13 +99,16 @@ The test suite is pinned to three kinds of reference bytes, kept apart so the so
 expectation is clear:
 
 - **Captured from real LabVIEW 2026** (26.3.1f1, on Windows): 33 byte sequences covering
-  every supported type except `I8`, `I16`, `U16` and `SGL`, taken by driving shipped VIs
+  every supported type except the `I8`, `I16`, `U16`, `SGL` and `I64` scalars (the 32-bit
+  integer was flattened from a U32 control, whose bytes are those of an I32), taken by
+  driving shipped VIs
   through LabVIEW's ActiveX interface, either from the output of Flatten To String itself or
   from LabVIEW's front-panel datalog records (whose encoding was checked against Flatten To
   String in the same run):
   [`tests/fixtures/real_labview`](https://github.com/JaviLianes8/lvflatten/tree/main/tests/fixtures/real_labview),
   with a manifest that records how each file was produced.
-- **Copied from NI's Flattened Data page**, every worked example on it, as fetched on
+- **Copied from NI's Flattened Data page**, every worked example on it except the path
+  example (paths are out of scope), as fetched on
   2026-10-12, with the page's own sentence next to each vector.
 - **Hand-derived** from the documented rules and cross-checked against independent maths
   (`struct` for IEEE 754, `datetime` for the 1904 epoch), and labelled as such.
@@ -115,7 +118,9 @@ the contract tests fail for every deliberate bug injected into the codec.
 
 ## Scope
 
-Supported: the types in the table above, nested to any depth, in both byte orders.
+Supported: the types in the table above, nested within the documented limits (64 levels in
+the text form), in both byte orders, one value per buffer (`unpack`) or several back to back
+(`unpack_from`).
 Not supported (yet): variants, waveforms, paths, refnums, enums, fixed-point numbers, sets,
 maps, LabVIEW classes, and reading LabVIEW type descriptors to build a schema automatically.
 `EXT` encodes every Python `float` exactly; decoding rounds LabVIEW's 113-bit significand to
