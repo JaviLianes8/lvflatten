@@ -105,4 +105,9 @@ def _finishes(schema: Schema, data: bytes, seconds: float) -> bool:
     ids=["empty_rows", "empty_clusters"],
 )
 def test_blow_up_is_refused_under_a_hard_deadline(schema: Schema, data: bytes) -> None:
+    # A bounded probe first, so a broken budget fails here instead of leaving a thread
+    # that builds 2**31 objects behind the rest of the suite.
+    probe = (2_000_000).to_bytes(4, "big") + data[4:]
+    with pytest.raises(DataError):
+        unpack(schema, probe)
     assert _finishes(schema, data, 2.0)

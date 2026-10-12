@@ -33,17 +33,28 @@ def _timed(action: Callable[[], object]) -> float:
     return time.perf_counter() - start
 
 
+_TWO_MILLION = (2_000_000).to_bytes(4, "big")
+
+
 @pytest.mark.parametrize(
-    ("schema", "data"),
+    ("schema", "probe", "data"),
     [
-        (Array(Cluster([])), _MAX),
-        (Array(I32, 2), _MAX + b"\x00\x00\x00\x00"),
-        (Array(I32, 3), _MAX + _MAX + b"\x00\x00\x00\x00"),
-        (Array(Array(Cluster([]))), b"\x00\x00\x00\x02" + _MAX + _MAX),
+        (Array(Cluster([])), _TWO_MILLION, _MAX),
+        (Array(I32, 2), _TWO_MILLION + bytes(4), _MAX + bytes(4)),
+        (Array(I32, 3), _TWO_MILLION * 2 + bytes(4), _MAX * 2 + bytes(4)),
+        (
+            Array(Array(Cluster([]))),
+            (2).to_bytes(4, "big") + _TWO_MILLION * 2,
+            (2).to_bytes(4, "big") + _MAX * 2,
+        ),
     ],
     ids=["empty_cluster_elements", "empty_rows_2d", "empty_rows_3d", "nested"],
 )
-def test_output_blow_up_is_refused_quickly(schema: Schema, data: bytes) -> None:
+def test_output_blow_up_is_refused_quickly(schema: Schema, probe: bytes, data: bytes) -> None:
+    # A bounded probe first: if the budget ever breaks, it builds a few million objects and
+    # fails here in seconds, before the 2**31 header could exhaust memory.
+    with pytest.raises(DataError):
+        unpack(schema, probe)
     start = time.perf_counter()
     with pytest.raises(DataError):
         unpack(schema, data)

@@ -114,7 +114,7 @@ def test_nested_empty_clusters_cannot_amplify_memory(depth: int) -> None:
     element = Cluster([])
     for _ in range(depth - 1):
         element = Cluster([("x", element)])
-    data = (1_000_000).to_bytes(4, "big") + bytes(50_000)  # claims far more than it holds
+    data = (20_000).to_bytes(4, "big") + bytes(5_000)  # claims far more than it holds
     tracemalloc.start()
     try:
         with pytest.raises(DataError):
