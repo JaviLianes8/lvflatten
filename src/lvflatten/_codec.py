@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from ._array import pack_array, unpack_array
 from ._buffer import as_view, release
@@ -18,6 +18,9 @@ from ._string import decode_text, pack_bytes, pack_string, unpack_bytes, unpack_
 from ._timestamp import pack_timestamp, unpack_timestamp
 
 _BYTE_ORDER = {"big": ">", "little": "<"}
+
+if TYPE_CHECKING:
+    from typing_extensions import Buffer  # collections.abc.Buffer from Python 3.12
 
 
 def _prefix(byte_order: object) -> str:
@@ -150,7 +153,7 @@ def pack(
 
 def unpack(
     schema: Schema,
-    data: bytes | bytearray | memoryview,
+    data: Buffer,
     *,
     byte_order: Literal["big", "little"] = "big",
     prepend_size: bool = True,
@@ -161,7 +164,8 @@ def unpack(
     catches a wrong schema or size. Short data raises :class:`TruncatedDataError` and other
     malformed data :class:`DataError`. With ``prepend_size`` false a top-level string takes
     the whole buffer and a top-level one-dimensional array of fixed-size elements is read to
-    the end. ``data`` may be any bytes-like object; anything else raises ``TypeError``.
+    the end. ``data`` may be any object supporting the buffer protocol; anything else raises
+    ``TypeError``.
 
     >>> from lvflatten import I32, Array, unpack
     >>> unpack(Array(I32), bytes.fromhex("000000020000000100000002"))

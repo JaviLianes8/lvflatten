@@ -109,12 +109,12 @@ def test_walking_a_strided_view_stays_linear() -> None:
 
 def test_any_buffer_protocol_object_is_accepted() -> None:
     raw = bytes.fromhex("0000002a")
-    assert unpack(I32, array.array("B", raw)) == 42  # type: ignore[arg-type]
-    assert unpack_from(I32, (ctypes.c_ubyte * 4)(*raw)) == (42, 4)  # type: ignore[arg-type]
+    assert unpack(I32, array.array("B", raw)) == 42
+    assert unpack_from(I32, (ctypes.c_ubyte * 4)(*raw)) == (42, 4)
     with mmap.mmap(-1, 4) as mapped:
         mapped.write(raw)
-        assert unpack(I32, mapped) == 42  # type: ignore[arg-type]
-        assert unpack_from(I32, mapped) == (42, 4)  # type: ignore[arg-type]
+        assert unpack(I32, mapped) == 42
+        assert unpack_from(I32, mapped) == (42, 4)
     for bad in ("0000002a", 42, None):
         with pytest.raises(TypeError):
             unpack(I32, bad)  # type: ignore[arg-type]

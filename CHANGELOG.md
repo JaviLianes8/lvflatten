@@ -79,7 +79,8 @@ Stable in 1.0: `pack` and `unpack` with `byte_order` and `prepend_size`; the sch
   `SchemaError` and an out-of-range time stamp raises `DataError`.
 - `unpack` and `unpack_from` accept any object supporting the buffer protocol (`bytes`,
   `bytearray`, `memoryview`, `array.array`, `mmap`, ...) and raise `TypeError` for anything
-  else. `unpack_from` reads it in place and releases it before returning or raising, so a
+  else; `data` is annotated as a `Buffer` (`collections.abc.Buffer`, from `typing_extensions`
+  for type checkers before Python 3.12). `unpack_from` reads it in place and releases it before returning or raising, so a
   caller may grow its `bytearray` inside the `except` block.
 - Quoted field names in the schema text form (`cluster("Error Code":i32)`), so any name
   round-trips through `format_schema` and `parse_schema`; nesting beyond 64 levels is refused.

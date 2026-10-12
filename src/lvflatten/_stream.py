@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from ._buffer import as_view, release
 from ._codec import _check_schema, _prefix, _unpack_node
@@ -10,10 +10,13 @@ from ._errors import SchemaError, short
 from ._reader import Reader
 from ._schema import Schema
 
+if TYPE_CHECKING:
+    from typing_extensions import Buffer  # collections.abc.Buffer from Python 3.12
+
 
 def unpack_from(
     schema: Schema,
-    data: bytes | bytearray | memoryview,
+    data: Buffer,
     offset: int = 0,
     *,
     byte_order: Literal["big", "little"] = "big",
