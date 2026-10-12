@@ -1,0 +1,114 @@
+"""Hostile input: size headers that lie, output blow-up, deep nesting, and time growth."""
+
+from __future__ import annotations
+
+import time
+from collections.abc import Callable
+
+import pytest
+
+from lvflatten import (
+    DBL,
+    I32,
+    Array,
+    Bytes,
+    Cluster,
+    DataError,
+    Schema,
+    SchemaError,
+    String,
+    TruncatedDataError,
+    format_schema,
+    pack,
+    parse_schema,
+    unpack,
+)
+
+_MAX = b"\x7f\xff\xff\xff"
+
+
+def _timed(action: Callable[[], object]) -> float:
+    start = time.perf_counter()
+    action()
+    return time.perf_counter() - start
+
+
+@pytest.mark.parametrize(
+    ("schema", "data"),
+    [
+        (Array(Cluster([])), _MAX),
+        (Array(I32, 2), _MAX + b"\x00\x00\x00\x00"),
+        (Array(I32, 3), _MAX + _MAX + b"\x00\x00\x00\x00"),
+        (Array(Array(Cluster([]))), b"\x00\x00\x00\x02" + _MAX + _MAX),
+    ],
+    ids=["empty_cluster_elements", "empty_rows_2d", "empty_rows_3d", "nested"],
+)
+def test_output_blow_up_is_refused_quickly(schema: Schema, data: bytes) -> None:
+    start = time.perf_counter()
+    with pytest.raises(DataError):
+        unpack(schema, data)
+    assert time.perf_counter() - start < 0.5
+
+
+def test_small_empty_shapes_still_decode() -> None:
+    assert unpack(Array(I32, 2), b"\x00\x00\x00\x03\x00\x00\x00\x00") == [[], [], []]
+    assert unpack(Array(I32, 2), b"\x00\x00\x00\x00\x00\x00\x00\x05") == []
+    assert unpack(Array(Cluster([])), b"\x00\x00\x00\x02") == [{}, {}]
+    assert pack(Array(I32, 2), [[], [], []]) == b"\x00\x00\x00\x03\x00\x00\x00\x00"
+
+
+@pytest.mark.parametrize("schema", [String(), Bytes, Array(DBL), Array(I32, 2)])
+def test_lying_size_headers_fail_fast(schema: Schema) -> None:
+    start = time.perf_counter()
+    with pytest.raises(TruncatedDataError):
+        unpack(schema, _MAX * 2)
+    assert time.perf_counter() - start < 0.5
+
+
+def test_decoding_time_grows_linearly() -> None:
+    def blob(count: int) -> bytes:
+        return pack(Array(String()), ["ab"] * count)
+
+    small, large = blob(20_000), blob(80_000)
+    best_small = min(_timed(lambda: unpack(Array(String()), small)) for _ in range(3))
+    best_large = min(_timed(lambda: unpack(Array(String()), large)) for _ in range(3))
+    assert best_large < best_small * 10
+
+
+def test_parsing_time_grows_linearly() -> None:
+    def text(count: int) -> str:
+        return "cluster(" + ", ".join(f"f{i}:i32" for i in range(count)) + ")"
+
+    small, large = text(5_000), text(20_000)
+    best_small = min(_timed(lambda: parse_schema(small)) for _ in range(3))
+    best_large = min(_timed(lambda: parse_schema(large)) for _ in range(3))
+    assert best_large < best_small * 10
+
+
+def test_text_nesting_limit() -> None:
+    assert parse_schema("array(" * 64 + "i32" + ")" * 64) is not None
+    with pytest.raises(SchemaError, match="64 levels"):
+        parse_schema("array(" * 65 + "i32" + ")" * 65)
+    with pytest.raises(SchemaError):
+        parse_schema("array(" * 100_000)
+
+
+def test_programmatic_deep_schemas_raise_schema_error_not_recursion_error() -> None:
+    deep: Schema = I32
+    for _ in range(5_000):
+        deep = Array(deep)
+    value: list[object] = []
+    for _ in range(4_999):
+        value = [value]
+    with pytest.raises(SchemaError):
+        pack(deep, value)
+    with pytest.raises(SchemaError):
+        unpack(deep, b"\x00\x00\x00\x01" * 5_000)
+    with pytest.raises(SchemaError):
+        format_schema(deep)
+
+
+def test_huge_bogus_tokens_are_not_echoed() -> None:
+    with pytest.raises(SchemaError) as info:
+        parse_schema("x" * 1_000_000)
+    assert len(str(info.value)) < 100
