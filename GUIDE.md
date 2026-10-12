@@ -124,7 +124,9 @@ order. The names never reach the wire.
 
 `Timestamp` holds an `LVTimestamp(seconds, fraction)`: signed whole seconds since
 1904-01-01T00:00:00Z and an unsigned 2**-64 second fraction, exactly as LabVIEW stores them.
-`LVTimestamp.from_datetime` and `to_datetime` convert to and from timezone-aware datetimes.
+`pack` also accepts a plain `(seconds, fraction)` tuple; `unpack` always returns an
+`LVTimestamp`. `LVTimestamp.from_datetime` and `to_datetime` convert to and from
+timezone-aware datetimes.
 
 ```python
 from datetime import datetime, timezone

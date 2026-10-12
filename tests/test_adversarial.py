@@ -81,8 +81,8 @@ def test_decoding_time_grows_linearly() -> None:
         return pack(Array(String()), ["ab"] * count)
 
     small, large = blob(20_000), blob(80_000)
-    best_small = min(_timed(lambda: unpack(Array(String()), small)) for _ in range(3))
-    best_large = min(_timed(lambda: unpack(Array(String()), large)) for _ in range(3))
+    best_small = min(_timed(lambda: unpack(Array(String()), small)) for _ in range(5))
+    best_large = min(_timed(lambda: unpack(Array(String()), large)) for _ in range(5))
     assert best_large < best_small * 10
 
 
